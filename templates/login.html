@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - Phishing Detector{% endblock %}
+
+{% block content %}
+  <section class="form-panel">
+    <h2>Login</h2>
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required />
+
+      <button type="submit">Sign In</button>
+    </form>
+  </section>
+{% endblock %}
