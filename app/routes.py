@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import Blueprint, redirect, render_template, request, session, url_for
-from .models import find_user_by_email, verify_password
+from .models import create_user, find_user_by_email, verify_password
 
 main_blueprint = Blueprint('main', __name__)
 
@@ -39,6 +39,27 @@ def login():
             return redirect(url_for('main.dashboard'))
 
     return render_template('login.html', error=error)
+
+
+@main_blueprint.route('/register', methods=['GET', 'POST'])
+def register():
+    error = None
+    if request.method == 'POST':
+        email = request.form['email'].strip().lower()
+        password = request.form['password'].strip()
+        confirm_password = request.form['confirm_password'].strip()
+
+        if not email or not password or not confirm_password:
+            error = 'All fields are required.'
+        elif password != confirm_password:
+            error = 'Passwords do not match.'
+        elif find_user_by_email(email) is not None:
+            error = 'An account with that email already exists.'
+        else:
+            create_user(email, password)
+            return redirect(url_for('main.login'))
+
+    return render_template('register.html', error=error)
 
 
 @main_blueprint.route('/dashboard')

@@ -3,10 +3,77 @@
 {% block title %}Dashboard - Phishing Detector{% endblock %}
 
 {% block content %}
-  <section class="dashboard-panel">
-    <h2>Dashboard</h2>
-    <p>Welcome, <strong>{{ user_email }}</strong>.</p>
-    <p>This page is ready for analyst tools, report pages, and secure account controls.</p>
-    <a class="button secondary" href="{{ url_for('main.logout') }}">Logout</a>
+  <section class="dashboard-page">
+    <div class="container">
+      <div class="dashboard-header">
+        <div>
+          <p class="eyebrow">Analyst dashboard</p>
+          <h1>Email risk review</h1>
+          <p class="muted-text">Signed in as <strong>{{ user_email }}</strong></p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.logout') }}">Logout</a>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <div class="workspace-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Scan email content</h2>
+                <p>Paste the sender, subject, links, and body text.</p>
+              </div>
+              <span class="status-pill">Ready</span>
+            </div>
+            <form>
+              <div class="mb-3">
+                <label class="form-label" for="email_subject">Subject</label>
+                <input class="form-control" id="email_subject" type="text" placeholder="Example: Your mailbox password expires today">
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="email_body">Email body</label>
+                <textarea class="form-control scan-box" id="email_body" rows="9" placeholder="Paste suspicious email content here"></textarea>
+              </div>
+              <button class="btn btn-primary" type="button">Analyze email</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="workspace-panel">
+            <h2>Risk signals</h2>
+            <div class="risk-list">
+              <div class="risk-row">
+                <span class="risk-dot danger"></span>
+                Mismatched sender domain
+              </div>
+              <div class="risk-row">
+                <span class="risk-dot warning"></span>
+                Urgent financial request
+              </div>
+              <div class="risk-row">
+                <span class="risk-dot safe"></span>
+                Attachment status
+              </div>
+            </div>
+          </div>
+
+          <div class="workspace-panel mt-4">
+            <h2>Review queue</h2>
+            <div class="queue-item">
+              <span>Pending</span>
+              <strong>0</strong>
+            </div>
+            <div class="queue-item">
+              <span>High risk</span>
+              <strong>0</strong>
+            </div>
+            <div class="queue-item">
+              <span>Safe</span>
+              <strong>0</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 {% endblock %}

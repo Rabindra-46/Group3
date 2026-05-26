@@ -3,9 +3,79 @@
 {% block title %}Home - Phishing Detector{% endblock %}
 
 {% block content %}
-  <section class="hero">
-    <h1>Welcome to the Phishing Email Detector</h1>
-    <p>This simple Flask application is a starter template for scanning email content, managing accounts, and building secure workflows.</p>
-    <a class="button" href="{{ url_for('main.login') }}">Login to continue</a>
+  <section class="home-hero">
+    <div class="container">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-6">
+          <p class="eyebrow">Email threat analysis</p>
+          <h1>Phishing Email Detector</h1>
+          <p class="hero-copy">Review suspicious messages, flag risky links, and keep user reports organized in one clean security workspace.</p>
+          <div class="hero-actions">
+            {% if session.get('user_email') %}
+              <a class="btn btn-primary btn-lg" href="{{ url_for('main.dashboard') }}">Open dashboard</a>
+            {% else %}
+              <a class="btn btn-primary btn-lg" href="{{ url_for('main.login') }}">Login</a>
+              <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.register') }}">Create account</a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="mail-preview" aria-label="Email scan preview">
+            <div class="mail-toolbar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="mail-header">
+              <div>
+                <small>From</small>
+                <strong>billing-alert@example-secure.co</strong>
+              </div>
+              <span class="risk-badge high">High risk</span>
+            </div>
+            <div class="mail-subject">Action required: payment verification</div>
+            <div class="signal-list">
+              <div class="signal-item danger">
+                <span class="signal-icon">!</span>
+                Domain does not match trusted sender
+              </div>
+              <div class="signal-item warning">
+                <span class="signal-icon">?</span>
+                Urgent wording detected
+              </div>
+              <div class="signal-item safe">
+                <span class="signal-icon">✓</span>
+                Attachment scan complete
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="trust-band">
+    <div class="container">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="metric-tile">
+            <span class="metric-value">URL</span>
+            <span class="metric-label">Link inspection</span>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="metric-tile">
+            <span class="metric-value">AI</span>
+            <span class="metric-label">Content risk review</span>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="metric-tile">
+            <span class="metric-value">RBAC</span>
+            <span class="metric-label">Role-ready access</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 {% endblock %}

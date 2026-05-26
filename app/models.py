@@ -1,3 +1,4 @@
+from werkzeug.security import check_password_hash, generate_password_hash
 from .database import get_db
 
 
@@ -8,16 +9,17 @@ def find_user_by_email(email):
 
 
 def create_user(email, password, role='user'):
+    hashed_password = generate_password_hash(password)
     db = get_db()
     db.execute(
         'INSERT INTO users (email, password, role) VALUES (?, ?, ?)',
-        (email, password, role),
+        (email, hashed_password, role),
     )
     db.commit()
 
 
-def verify_password(password, candidate):
-    return password == candidate
+def verify_password(stored_password, candidate):
+    return check_password_hash(stored_password, candidate)
 
 
 # Future RBAC and 2FA support can be added here:

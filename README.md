@@ -7,8 +7,14 @@ A beginner-friendly Flask web application scaffold for a phishing email detectio
 - Python Flask application structure
 - SQLite database support
 - Simple login flow
-- Home page, login page, and dashboard page
+- Home page, login page, registration page, and dashboard page
 - Prepared for future RBAC and 2FA integration
+
+## Authentication
+
+- User registration with email and password
+- Secure password hashing with `werkzeug.security`
+- Session-based login/logout flow
 
 ## Project structure
 
