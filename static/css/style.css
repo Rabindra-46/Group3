@@ -66,6 +66,10 @@ body {
   min-height: calc(100vh - 136px);
 }
 
+.flash-container {
+  padding-top: 24px;
+}
+
 .btn {
   border-radius: 8px;
   font-weight: 700;

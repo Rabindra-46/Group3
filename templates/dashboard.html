@@ -9,7 +9,7 @@
         <div>
           <p class="eyebrow">Analyst dashboard</p>
           <h1>Email risk review</h1>
-          <p class="muted-text">Signed in as <strong>{{ user_email }}</strong></p>
+          <p class="muted-text">Signed in as <strong>{{ user_email }}</strong> · Role: <strong>{{ user_role }}</strong></p>
         </div>
         <a class="btn btn-outline-secondary" href="{{ url_for('main.logout') }}">Logout</a>
       </div>

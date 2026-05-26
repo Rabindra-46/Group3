@@ -25,9 +25,35 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            role TEXT NOT NULL DEFAULT 'user'
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user',
+            is_2fa_enabled INTEGER NOT NULL DEFAULT 0,
+            two_factor_secret TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         '''
     )
+
+    existing_columns = {
+        row['name'] for row in db.execute('PRAGMA table_info(users)').fetchall()
+    }
+
+    if 'password_hash' not in existing_columns:
+        db.execute('ALTER TABLE users ADD COLUMN password_hash TEXT')
+        if 'password' in existing_columns:
+            db.execute('UPDATE users SET password_hash = password WHERE password_hash IS NULL')
+
+    if 'role' not in existing_columns:
+        db.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+
+    if 'is_2fa_enabled' not in existing_columns:
+        db.execute('ALTER TABLE users ADD COLUMN is_2fa_enabled INTEGER NOT NULL DEFAULT 0')
+
+    if 'two_factor_secret' not in existing_columns:
+        db.execute('ALTER TABLE users ADD COLUMN two_factor_secret TEXT')
+
+    if 'created_at' not in existing_columns:
+        db.execute('ALTER TABLE users ADD COLUMN created_at TIMESTAMP')
+        db.execute("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
+
     db.commit()
