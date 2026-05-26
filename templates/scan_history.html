@@ -30,6 +30,7 @@
               <th>Subject</th>
               <th>Sender</th>
               <th>Result</th>
+              <th>Quarantine</th>
               <th>Score</th>
               <th>Created</th>
               <th></th>
@@ -41,11 +42,28 @@
                 <td>{{ scan.subject }}</td>
                 <td>{{ scan.sender }}</td>
                 <td><span class="badge risk-{{ scan.result_color }}">{{ scan.result_label }}</span></td>
+                <td>
+                  {% if scan.is_quarantined %}
+                    <span class="badge text-bg-warning">Quarantined</span>
+                  {% else %}
+                    <span class="badge text-bg-light">Clear</span>
+                  {% endif %}
+                </td>
                 <td>{{ scan.risk_score }}/100</td>
                 <td>{{ scan.created_at }}</td>
                 <td>
                   <div class="table-actions">
                     <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}">View</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.export_scan', scan_id=scan.id, file_type='csv') }}">Export CSV</a>
+                    {% if scan.is_quarantined %}
+                      <form method="post" action="{{ url_for('main.release_scan', scan_id=scan.id) }}" onsubmit="return confirm('Release this report from quarantine?');">
+                        <button class="btn btn-outline-success btn-sm" type="submit">Release</button>
+                      </form>
+                    {% else %}
+                      <form method="post" action="{{ url_for('main.quarantine_scan', scan_id=scan.id) }}" onsubmit="return confirm('Move this report to quarantine?');">
+                        <button class="btn btn-outline-warning btn-sm" type="submit">Quarantine</button>
+                      </form>
+                    {% endif %}
                     <form method="post" action="{{ url_for('main.delete_scan', scan_id=scan.id) }}" onsubmit="return confirm('Delete this scan report?');">
                       <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
                     </form>
@@ -54,7 +72,7 @@
               </tr>
             {% else %}
               <tr>
-                <td colspan="6" class="text-secondary">No scans saved yet.</td>
+                <td colspan="7" class="text-secondary">No scans saved yet.</td>
               </tr>
             {% endfor %}
           </tbody>

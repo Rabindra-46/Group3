@@ -7,7 +7,7 @@
   <div class="row">
     <div class="col-sm-8">
       <h1 class="m-0">Quarantine</h1>
-      <p class="text-secondary mb-0">Suspicious and phishing reports that need extra review.</p>
+      <p class="text-secondary mb-0">Reports held for extra review before they are trusted.</p>
     </div>
   </div>
 {% endblock %}
@@ -24,6 +24,8 @@
               <th>Sender</th>
               <th>Result</th>
               <th>Score</th>
+              <th>Reason</th>
+              <th>Quarantined</th>
               <th></th>
             </tr>
           </thead>
@@ -35,17 +37,29 @@
                 <td>{{ scan.sender }}</td>
                 <td><span class="badge risk-{{ scan.result_color }}">{{ scan.result_label }}</span></td>
                 <td>{{ scan.risk_score }}/100</td>
+                <td>{{ scan.quarantine_reason or 'No reason saved.' }}</td>
+                <td>{{ scan.quarantined_at or scan.created_at }}</td>
                 <td>
-                  {% if is_admin_view %}
-                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_scan_detail', scan_id=scan.id) }}">View</a>
-                  {% else %}
-                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}">View</a>
-                  {% endif %}
+                  <div class="table-actions">
+                    {% if is_admin_view %}
+                      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_scan_detail', scan_id=scan.id) }}">View</a>
+                      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.admin_export_scan', scan_id=scan.id, file_type='csv') }}">Export CSV</a>
+                      <form method="post" action="{{ url_for('main.admin_release_scan', scan_id=scan.id) }}" onsubmit="return confirm('Release this report from quarantine?');">
+                        <button class="btn btn-outline-success btn-sm" type="submit">Release</button>
+                      </form>
+                    {% else %}
+                      <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}">View</a>
+                      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.export_scan', scan_id=scan.id, file_type='csv') }}">Export CSV</a>
+                      <form method="post" action="{{ url_for('main.release_scan', scan_id=scan.id) }}" onsubmit="return confirm('Release this report from quarantine?');">
+                        <button class="btn btn-outline-success btn-sm" type="submit">Release</button>
+                      </form>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
             {% else %}
               <tr>
-                <td colspan="{% if is_admin_view %}6{% else %}5{% endif %}" class="text-secondary">No quarantined reports found.</td>
+                <td colspan="{% if is_admin_view %}8{% else %}7{% endif %}" class="text-secondary">No quarantined reports found.</td>
               </tr>
             {% endfor %}
           </tbody>

@@ -18,6 +18,16 @@
       <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_dashboard') if is_admin_view else url_for('main.scan_history') }}">
         {% if is_admin_view %}Back to admin{% else %}Back to reports{% endif %}
       </a>
+      <a class="btn btn-outline-primary" href="{{ url_for('main.admin_export_scan', scan_id=scan.id, file_type='csv') if is_admin_view else url_for('main.export_scan', scan_id=scan.id, file_type='csv') }}">Export CSV</a>
+      {% if scan.is_quarantined %}
+        <form class="d-inline" method="post" action="{{ url_for('main.admin_release_scan', scan_id=scan.id) if is_admin_view else url_for('main.release_scan', scan_id=scan.id) }}" onsubmit="return confirm('Release this report from quarantine?');">
+          <button class="btn btn-outline-success" type="submit">Release</button>
+        </form>
+      {% else %}
+        <form class="d-inline" method="post" action="{{ url_for('main.admin_quarantine_scan', scan_id=scan.id) if is_admin_view else url_for('main.quarantine_scan', scan_id=scan.id) }}" onsubmit="return confirm('Move this report to quarantine?');">
+          <button class="btn btn-outline-warning" type="submit">Quarantine</button>
+        </form>
+      {% endif %}
       <form class="d-inline" method="post" action="{{ url_for('main.admin_delete_scan', scan_id=scan.id) if is_admin_view else url_for('main.delete_scan', scan_id=scan.id) }}" onsubmit="return confirm('Delete this scan report?');">
         <button class="btn btn-outline-danger" type="submit">Delete</button>
       </form>
@@ -38,6 +48,20 @@
         <div class="col-md-6"><div class="detail-box"><span>Subject</span><strong>{{ scan.subject }}</strong></div></div>
         <div class="col-md-6"><div class="detail-box"><span>Reply-To</span><strong>{{ scan.reply_to or 'Not recorded' }}</strong></div></div>
         <div class="col-md-6"><div class="detail-box"><span>Return-Path</span><strong>{{ scan.return_path or 'Not recorded' }}</strong></div></div>
+        <div class="col-md-6">
+          <div class="detail-box">
+            <span>Quarantine status</span>
+            <strong>{{ 'Quarantined' if scan.is_quarantined else 'Clear' }}</strong>
+          </div>
+        </div>
+        {% if scan.is_quarantined %}
+          <div class="col-md-6">
+            <div class="detail-box">
+              <span>Quarantine reason</span>
+              <strong>{{ scan.quarantine_reason or 'No reason saved.' }}</strong>
+            </div>
+          </div>
+        {% endif %}
       </div>
 
       <h4 class="section-title">Authentication headers</h4>

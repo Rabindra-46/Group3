@@ -1,11 +1,13 @@
 import base64
+from datetime import datetime
 from io import BytesIO
 from functools import wraps
 
 import pyotp
 import qrcode
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 from .analyzer import analyze_email
+from .reports import build_scan_csv, build_scans_csv
 from .models import (
     ROLE_ADMIN,
     create_user,
@@ -21,11 +23,15 @@ from .models import (
     get_password_hash,
     get_scan_counts,
     list_all_email_scans,
+    list_all_quarantined_email_scans,
     list_email_scans,
+    list_quarantined_email_scans,
     list_users,
     reset_2fa,
     save_2fa_secret,
     save_email_scan,
+    set_any_email_scan_quarantine,
+    set_email_scan_quarantine,
     set_user_active,
     verify_password,
 )
@@ -162,6 +168,26 @@ def get_qr_code_data_uri(secret, email):
     image.save(buffer, format='PNG')
     qr_code = base64.b64encode(buffer.getvalue()).decode('utf-8')
     return f'data:image/png;base64,{qr_code}'
+
+
+def export_scan_response(scan):
+    timestamp = datetime.utcnow().strftime('%Y%m%d')
+    filename = f"scan-report-{scan['id']}-{timestamp}.csv"
+    return Response(
+        build_scan_csv(scan),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
+def export_scans_response(scans):
+    timestamp = datetime.utcnow().strftime('%Y%m%d')
+    filename = f'all-scan-reports-{timestamp}.csv'
+    return Response(
+        build_scans_csv(scans),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
 
 
 @main_blueprint.route('/')
@@ -394,31 +420,78 @@ def scan_history():
 @login_required
 def quarantine():
     auth = get_auth(AUTH_CONTEXT_USER)
-    scans = [
-        scan for scan in list_email_scans(auth['user_id'])
-        if scan['result_label'] in ['Phishing', 'Suspicious']
-    ]
     return render_template(
         'quarantine.html',
-        scans=scans,
+        scans=list_quarantined_email_scans(auth['user_id']),
         user_role=auth['user_role'],
     )
+
+
+@main_blueprint.route('/scans/<int:scan_id>/quarantine', methods=['POST'])
+@login_required
+def quarantine_scan(scan_id):
+    auth = get_auth(AUTH_CONTEXT_USER)
+    updated_count = set_email_scan_quarantine(
+        scan_id,
+        auth['user_id'],
+        True,
+        'Manually quarantined by the user.',
+    )
+    if updated_count:
+        flash('Scan report moved to quarantine.', 'success')
+    else:
+        flash('Scan report not found.', 'warning')
+    return redirect(url_for('main.scan_history'))
+
+
+@main_blueprint.route('/scans/<int:scan_id>/release', methods=['POST'])
+@login_required
+def release_scan(scan_id):
+    auth = get_auth(AUTH_CONTEXT_USER)
+    updated_count = set_email_scan_quarantine(scan_id, auth['user_id'], False)
+    if updated_count:
+        flash('Scan report released from quarantine.', 'success')
+    else:
+        flash('Scan report not found.', 'warning')
+    return redirect(url_for('main.quarantine'))
 
 
 @main_blueprint.route('/admin/quarantine')
 @role_required(ROLE_ADMIN)
 def admin_quarantine():
     auth = get_auth(AUTH_CONTEXT_ADMIN)
-    scans = [
-        scan for scan in list_all_email_scans()
-        if scan['result_label'] in ['Phishing', 'Suspicious']
-    ]
     return render_template(
         'quarantine.html',
-        scans=scans,
+        scans=list_all_quarantined_email_scans(),
         user_role=auth['user_role'],
         is_admin_view=True,
     )
+
+
+@main_blueprint.route('/admin/scans/<int:scan_id>/quarantine', methods=['POST'])
+@role_required(ROLE_ADMIN)
+def admin_quarantine_scan(scan_id):
+    updated_count = set_any_email_scan_quarantine(
+        scan_id,
+        True,
+        'Manually quarantined by an admin.',
+    )
+    if updated_count:
+        flash('Scan report moved to quarantine.', 'success')
+    else:
+        flash('Scan report not found.', 'warning')
+    return redirect(url_for('main.admin_dashboard'))
+
+
+@main_blueprint.route('/admin/scans/<int:scan_id>/release', methods=['POST'])
+@role_required(ROLE_ADMIN)
+def admin_release_scan(scan_id):
+    updated_count = set_any_email_scan_quarantine(scan_id, False)
+    if updated_count:
+        flash('Scan report released from quarantine.', 'success')
+    else:
+        flash('Scan report not found.', 'warning')
+    return redirect(url_for('main.admin_quarantine'))
 
 
 @main_blueprint.route('/scans/<int:scan_id>')
@@ -435,6 +508,22 @@ def scan_detail(scan_id):
         scan=scan,
         user_role=auth['user_role'],
     )
+
+
+@main_blueprint.route('/scans/<int:scan_id>/export/<file_type>')
+@login_required
+def export_scan(scan_id, file_type):
+    if file_type != 'csv':
+        flash('Unsupported export format.', 'warning')
+        return redirect(url_for('main.scan_detail', scan_id=scan_id))
+
+    auth = get_auth(AUTH_CONTEXT_USER)
+    scan = find_email_scan(scan_id, auth['user_id'])
+    if scan is None:
+        flash('Scan report not found.', 'warning')
+        return redirect(url_for('main.scan_history'))
+
+    return export_scan_response(scan)
 
 
 @main_blueprint.route('/scans/<int:scan_id>/delete', methods=['POST'])
@@ -525,6 +614,27 @@ def admin_scan_detail(scan_id):
         user_role=auth['user_role'],
         is_admin_view=True,
     )
+
+
+@main_blueprint.route('/admin/scans/<int:scan_id>/export/<file_type>')
+@role_required(ROLE_ADMIN)
+def admin_export_scan(scan_id, file_type):
+    if file_type != 'csv':
+        flash('Unsupported export format.', 'warning')
+        return redirect(url_for('main.admin_scan_detail', scan_id=scan_id))
+
+    scan = find_any_email_scan(scan_id)
+    if scan is None:
+        flash('Scan report not found.', 'warning')
+        return redirect(url_for('main.admin_dashboard'))
+
+    return export_scan_response(scan)
+
+
+@main_blueprint.route('/admin/scans/export/csv')
+@role_required(ROLE_ADMIN)
+def admin_export_all_scans():
+    return export_scans_response(list_all_email_scans(limit=None))
 
 
 @main_blueprint.route('/admin/scans/<int:scan_id>/delete', methods=['POST'])

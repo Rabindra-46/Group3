@@ -79,6 +79,9 @@ def init_db():
             reasons TEXT,
             safe_signals TEXT,
             confidence INTEGER,
+            is_quarantined INTEGER NOT NULL DEFAULT 0,
+            quarantine_reason TEXT,
+            quarantined_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
@@ -103,5 +106,35 @@ def init_db():
 
     if 'confidence' not in scan_columns:
         db.execute('ALTER TABLE email_scans ADD COLUMN confidence INTEGER')
+
+    if 'is_quarantined' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN is_quarantined INTEGER NOT NULL DEFAULT 0')
+        db.execute(
+            '''
+            UPDATE email_scans
+            SET is_quarantined = 1
+            WHERE result_label IN ('Phishing', 'Suspicious')
+            '''
+        )
+
+    if 'quarantine_reason' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN quarantine_reason TEXT')
+        db.execute(
+            '''
+            UPDATE email_scans
+            SET quarantine_reason = 'Automatically quarantined because the scan was flagged.'
+            WHERE is_quarantined = 1 AND quarantine_reason IS NULL
+            '''
+        )
+
+    if 'quarantined_at' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN quarantined_at TIMESTAMP')
+        db.execute(
+            '''
+            UPDATE email_scans
+            SET quarantined_at = created_at
+            WHERE is_quarantined = 1 AND quarantined_at IS NULL
+            '''
+        )
 
     db.commit()

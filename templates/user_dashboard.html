@@ -43,10 +43,10 @@
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
       <div class="info-box">
-        <span class="info-box-icon text-bg-success">OK</span>
+        <span class="info-box-icon text-bg-warning">Q</span>
         <div class="info-box-content">
-          <span class="info-box-text">Safe</span>
-          <span class="info-box-number">{{ scan_counts.safe }}</span>
+          <span class="info-box-text">Quarantined</span>
+          <span class="info-box-number">{{ scan_counts.quarantined }}</span>
         </div>
       </div>
     </div>
@@ -65,6 +65,7 @@
                 <tr>
                   <th>Subject</th>
                   <th>Result</th>
+                  <th>Quarantine</th>
                   <th>Score</th>
                   <th></th>
                 </tr>
@@ -74,12 +75,13 @@
                   <tr>
                     <td>{{ scan.subject }}</td>
                     <td><span class="badge risk-{{ scan.result_color }}">{{ scan.result_label }}</span></td>
+                    <td>{{ 'Held' if scan.is_quarantined else 'Clear' }}</td>
                     <td>{{ scan.risk_score }}/100</td>
                     <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}">View</a></td>
                   </tr>
                 {% else %}
                   <tr>
-                    <td colspan="4" class="text-secondary">No scans saved yet.</td>
+                    <td colspan="5" class="text-secondary">No scans saved yet.</td>
                   </tr>
                 {% endfor %}
               </tbody>

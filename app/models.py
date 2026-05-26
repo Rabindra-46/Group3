@@ -103,6 +103,11 @@ def set_user_active(user_id, is_active):
 
 def save_email_scan(user_id, result):
     db = get_db()
+    should_quarantine = result['result_label'] in ['Phishing', 'Suspicious']
+    quarantine_reason = None
+    if should_quarantine:
+        quarantine_reason = f"Automatically quarantined because result was {result['result_label']}."
+
     cursor = db.execute(
         '''
         INSERT INTO email_scans (
@@ -120,9 +125,12 @@ def save_email_scan(user_id, result):
             result_color,
             reasons,
             safe_signals,
-            confidence
+            confidence,
+            is_quarantined,
+            quarantine_reason,
+            quarantined_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE NULL END)
         ''',
         (
             user_id,
@@ -140,6 +148,9 @@ def save_email_scan(user_id, result):
             dumps_list(result['reasons']),
             dumps_list(result['safe_signals']),
             result['confidence'],
+            1 if should_quarantine else 0,
+            quarantine_reason,
+            1 if should_quarantine else 0,
         ),
     )
     db.commit()
@@ -154,6 +165,20 @@ def list_email_scans(user_id):
         FROM email_scans
         WHERE user_id = ?
         ORDER BY created_at DESC
+        ''',
+        (user_id,),
+    ).fetchall()
+    return [format_scan(row) for row in rows]
+
+
+def list_quarantined_email_scans(user_id):
+    db = get_db()
+    rows = db.execute(
+        '''
+        SELECT *
+        FROM email_scans
+        WHERE user_id = ? AND is_quarantined = 1
+        ORDER BY quarantined_at DESC, created_at DESC
         ''',
         (user_id,),
     ).fetchall()
@@ -175,6 +200,28 @@ def find_email_scan(scan_id, user_id):
     return format_scan(row)
 
 
+def set_email_scan_quarantine(scan_id, user_id, is_quarantined, reason=None):
+    db = get_db()
+    cursor = db.execute(
+        '''
+        UPDATE email_scans
+        SET is_quarantined = ?,
+            quarantine_reason = ?,
+            quarantined_at = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE NULL END
+        WHERE id = ? AND user_id = ?
+        ''',
+        (
+            1 if is_quarantined else 0,
+            reason if is_quarantined else None,
+            1 if is_quarantined else 0,
+            scan_id,
+            user_id,
+        ),
+    )
+    db.commit()
+    return cursor.rowcount
+
+
 def find_any_email_scan(scan_id):
     db = get_db()
     row = db.execute(
@@ -189,6 +236,41 @@ def find_any_email_scan(scan_id):
     if row is None:
         return None
     return format_scan(row)
+
+
+def list_all_quarantined_email_scans():
+    db = get_db()
+    rows = db.execute(
+        '''
+        SELECT email_scans.*, users.email AS user_email
+        FROM email_scans
+        JOIN users ON users.id = email_scans.user_id
+        WHERE email_scans.is_quarantined = 1
+        ORDER BY email_scans.quarantined_at DESC, email_scans.created_at DESC
+        '''
+    ).fetchall()
+    return [format_scan(row) for row in rows]
+
+
+def set_any_email_scan_quarantine(scan_id, is_quarantined, reason=None):
+    db = get_db()
+    cursor = db.execute(
+        '''
+        UPDATE email_scans
+        SET is_quarantined = ?,
+            quarantine_reason = ?,
+            quarantined_at = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE NULL END
+        WHERE id = ?
+        ''',
+        (
+            1 if is_quarantined else 0,
+            reason if is_quarantined else None,
+            1 if is_quarantined else 0,
+            scan_id,
+        ),
+    )
+    db.commit()
+    return cursor.rowcount
 
 
 def delete_email_scan(scan_id, user_id):
@@ -218,20 +300,24 @@ def get_scan_counts(user_id):
         'phishing': sum(1 for scan in scans if scan['result_label'] == 'Phishing'),
         'suspicious': sum(1 for scan in scans if scan['result_label'] == 'Suspicious'),
         'safe': sum(1 for scan in scans if scan['result_label'] == 'Safe'),
+        'quarantined': sum(1 for scan in scans if scan['is_quarantined']),
     }
 
 
-def list_all_email_scans():
+def list_all_email_scans(limit=25):
     db = get_db()
-    rows = db.execute(
-        '''
+    query = '''
         SELECT email_scans.*, users.email AS user_email
         FROM email_scans
         JOIN users ON users.id = email_scans.user_id
         ORDER BY email_scans.created_at DESC
-        LIMIT 25
         '''
-    ).fetchall()
+    params = ()
+    if limit is not None:
+        query += 'LIMIT ?'
+        params = (limit,)
+
+    rows = db.execute(query, params).fetchall()
     return [format_scan(row) for row in rows]
 
 
@@ -256,4 +342,5 @@ def format_scan(row):
     scan['reasons'] = loads_list(scan.get('reasons'))
     scan['safe_signals'] = loads_list(scan.get('safe_signals'))
     scan['confidence'] = scan.get('confidence') or 0
+    scan['is_quarantined'] = bool(scan.get('is_quarantined'))
     return scan
