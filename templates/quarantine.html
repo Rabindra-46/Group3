@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Quarantine - Phishing Detector{% endblock %}
+{% block page_heading %}Quarantine{% endblock %}
+
+{% block content_header %}
+  <div class="row">
+    <div class="col-sm-8">
+      <h1 class="m-0">Quarantine</h1>
+      <p class="text-secondary mb-0">Suspicious and phishing reports that need extra review.</p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0">
+          <thead>
+            <tr>
+              {% if is_admin_view %}<th>User</th>{% endif %}
+              <th>Subject</th>
+              <th>Sender</th>
+              <th>Result</th>
+              <th>Score</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for scan in scans %}
+              <tr>
+                {% if is_admin_view %}<td>{{ scan.user_email }}</td>{% endif %}
+                <td>{{ scan.subject }}</td>
+                <td>{{ scan.sender }}</td>
+                <td><span class="badge risk-{{ scan.result_color }}">{{ scan.result_label }}</span></td>
+                <td>{{ scan.risk_score }}/100</td>
+                <td>
+                  {% if is_admin_view %}
+                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.admin_scan_detail', scan_id=scan.id) }}">View</a>
+                  {% else %}
+                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}">View</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="{% if is_admin_view %}6{% else %}5{% endif %}" class="text-secondary">No quarantined reports found.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}

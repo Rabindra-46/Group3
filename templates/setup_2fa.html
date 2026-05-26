@@ -7,11 +7,11 @@
     <div class="auth-card">
       <div class="auth-side">
         <p class="eyebrow">Two-factor setup</p>
-        <h1>Secure your account</h1>
+        <h1>{% if is_admin_login %}Secure admin access{% else %}Secure your account{% endif %}</h1>
         <p>Scan the QR code with Google Authenticator, Microsoft Authenticator, Authy, or another TOTP app. The app will create a new code every 30 seconds.</p>
       </div>
       <div class="auth-form">
-        <h2>Set up 2FA</h2>
+        <h2>{% if is_admin_login %}Set up admin 2FA{% else %}Set up 2FA{% endif %}</h2>
         <div class="qr-panel">
           <img src="{{ qr_code }}" alt="Two-factor authentication QR code">
         </div>

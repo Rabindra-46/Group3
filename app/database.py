@@ -27,6 +27,7 @@ def init_db():
             email TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'user',
+            is_active INTEGER NOT NULL DEFAULT 1,
             is_2fa_enabled INTEGER NOT NULL DEFAULT 0,
             two_factor_secret TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -46,6 +47,9 @@ def init_db():
     if 'role' not in existing_columns:
         db.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
 
+    if 'is_active' not in existing_columns:
+        db.execute('ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1')
+
     if 'is_2fa_enabled' not in existing_columns:
         db.execute('ALTER TABLE users ADD COLUMN is_2fa_enabled INTEGER NOT NULL DEFAULT 0')
 
@@ -63,6 +67,9 @@ def init_db():
             user_id INTEGER NOT NULL,
             sender TEXT,
             subject TEXT,
+            reply_to TEXT,
+            return_path TEXT,
+            authentication_results TEXT,
             body_preview TEXT,
             urls TEXT,
             attachments TEXT,
@@ -70,10 +77,31 @@ def init_db():
             result_label TEXT NOT NULL,
             result_color TEXT NOT NULL,
             reasons TEXT,
+            safe_signals TEXT,
+            confidence INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
         '''
     )
+
+    scan_columns = {
+        row['name'] for row in db.execute('PRAGMA table_info(email_scans)').fetchall()
+    }
+
+    if 'reply_to' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN reply_to TEXT')
+
+    if 'return_path' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN return_path TEXT')
+
+    if 'authentication_results' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN authentication_results TEXT')
+
+    if 'safe_signals' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN safe_signals TEXT')
+
+    if 'confidence' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN confidence INTEGER')
 
     db.commit()

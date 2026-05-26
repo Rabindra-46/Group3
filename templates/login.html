@@ -7,11 +7,17 @@
     <div class="auth-card">
       <div class="auth-side">
         <p class="eyebrow">Secure access</p>
-        <h1>Welcome back</h1>
-        <p>Continue to your phishing detection dashboard and review suspicious email reports.</p>
+        <h1>{% if is_admin_login %}Admin login{% else %}Welcome back{% endif %}</h1>
+        <p>
+          {% if is_admin_login %}
+            Sign in to the admin control panel without replacing the normal user session.
+          {% else %}
+            Continue to your phishing detection dashboard and review suspicious email reports.
+          {% endif %}
+        </p>
       </div>
       <div class="auth-form">
-        <h2>Login</h2>
+        <h2>{% if is_admin_login %}Admin login{% else %}Login{% endif %}</h2>
         <form method="post">
           <div class="mb-3">
             <label for="email" class="form-label">Email</label>
@@ -23,7 +29,12 @@
           </div>
           <button type="submit" class="btn btn-primary w-100">Sign in</button>
         </form>
-        <p class="form-note">New user? <a href="{{ url_for('main.register') }}">Create an account</a>.</p>
+        {% if is_admin_login %}
+          <p class="form-note">Need the normal user area? <a href="{{ url_for('main.login') }}">User login</a>.</p>
+        {% else %}
+          <p class="form-note">New user? <a href="{{ url_for('main.register') }}">Create an account</a>.</p>
+          <p class="form-note">Admin account? <a href="{{ url_for('main.admin_login') }}">Admin login</a>.</p>
+        {% endif %}
       </div>
     </div>
   </section>

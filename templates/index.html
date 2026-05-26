@@ -11,7 +11,7 @@
           <h1>Phishing Email Detector</h1>
           <p class="hero-copy">Review suspicious messages, flag risky links, and keep user reports organized in one clean security workspace.</p>
           <div class="hero-actions">
-            {% if session.get('user_email') %}
+            {% if user_auth %}
               <a class="btn btn-primary btn-lg" href="{{ url_for('main.dashboard') }}">Open dashboard</a>
             {% else %}
               <a class="btn btn-primary btn-lg" href="{{ url_for('main.login') }}">Login</a>

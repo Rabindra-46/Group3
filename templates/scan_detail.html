@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Scan Report - Phishing Detector{% endblock %}
+{% block page_heading %}Scan Report{% endblock %}
+
+{% block content_header %}
+  <div class="row align-items-center">
+    <div class="col-sm-8">
+      <h1 class="m-0">Email scan detail</h1>
+      <p class="text-secondary mb-0">
+        Created {{ scan.created_at }}
+        {% if is_admin_view and scan.user_email %}
+          | Submitted by <strong>{{ scan.user_email }}</strong>
+        {% endif %}
+      </p>
+    </div>
+    <div class="col-sm-4 text-sm-end mt-3 mt-sm-0">
+      <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_dashboard') if is_admin_view else url_for('main.scan_history') }}">
+        {% if is_admin_view %}Back to admin{% else %}Back to reports{% endif %}
+      </a>
+      <form class="d-inline" method="post" action="{{ url_for('main.admin_delete_scan', scan_id=scan.id) if is_admin_view else url_for('main.delete_scan', scan_id=scan.id) }}" onsubmit="return confirm('Delete this scan report?');">
+        <button class="btn btn-outline-danger" type="submit">Delete</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header d-flex align-items-center gap-3">
+      <span class="badge risk-{{ scan.result_color }}">{{ scan.result_label }}</span>
+      <h3 class="card-title mb-0">{{ scan.risk_score }}/100 risk score</h3>
+      <span class="text-secondary ms-auto">{{ scan.confidence }}% confidence</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6"><div class="detail-box"><span>Sender</span><strong>{{ scan.sender }}</strong></div></div>
+        <div class="col-md-6"><div class="detail-box"><span>Subject</span><strong>{{ scan.subject }}</strong></div></div>
+        <div class="col-md-6"><div class="detail-box"><span>Reply-To</span><strong>{{ scan.reply_to or 'Not recorded' }}</strong></div></div>
+        <div class="col-md-6"><div class="detail-box"><span>Return-Path</span><strong>{{ scan.return_path or 'Not recorded' }}</strong></div></div>
+      </div>
+
+      <h4 class="section-title">Authentication headers</h4>
+      <div class="detail-box"><span>Authentication-Results</span><strong>{{ scan.authentication_results or 'Not recorded' }}</strong></div>
+
+      <h4 class="section-title">Email body preview</h4>
+      <div class="email-body-preview">{{ scan.body_preview or 'No body preview saved.' }}</div>
+
+      <h4 class="section-title">Flags and reasons</h4>
+      <div class="reason-list">
+        {% for reason in scan.reasons %}
+          <div class="reason-item">{{ reason }}</div>
+        {% else %}
+          <div class="reason-item">No reasons saved.</div>
+        {% endfor %}
+      </div>
+
+      {% if scan.safe_signals %}
+        <h4 class="section-title">Safe signals</h4>
+        <div class="reason-list">
+          {% for signal in scan.safe_signals %}
+            <div class="reason-item safe-reason">{{ signal }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <h4 class="section-title">Extracted URLs</h4>
+      {% if scan.urls %}
+        <ul class="extracted-list">
+          {% for url in scan.urls %}<li>{{ url }}</li>{% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-secondary">No URLs found.</p>
+      {% endif %}
+
+      <h4 class="section-title">Attachments</h4>
+      {% if scan.attachments %}
+        <ul class="extracted-list">
+          {% for attachment in scan.attachments %}<li>{{ attachment }}</li>{% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-secondary">No attachments found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

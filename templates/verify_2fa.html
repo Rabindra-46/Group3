@@ -7,11 +7,11 @@
     <div class="auth-card">
       <div class="auth-side">
         <p class="eyebrow">Second step</p>
-        <h1>Enter your code</h1>
+        <h1>{% if is_admin_login %}Admin verification{% else %}Enter your code{% endif %}</h1>
         <p>Use the current six-digit code from your authenticator app. A new code appears every 30 seconds.</p>
       </div>
       <div class="auth-form">
-        <h2>Verify 2FA</h2>
+        <h2>{% if is_admin_login %}Verify admin 2FA{% else %}Verify 2FA{% endif %}</h2>
         <form method="post">
           <div class="mb-3">
             <label for="otp_code" class="form-label">Authentication code</label>
@@ -22,6 +22,10 @@
         <div class="help-panel">
           <strong>Code expired?</strong>
           <p>There is no resend button for authenticator apps. Wait for the next code in the app, then enter the new code here.</p>
+        </div>
+        <div class="help-panel">
+          <strong>Removed from authenticator?</strong>
+          <p>Ask an admin to reset 2FA for your account. After reset, log in again and scan the new QR code.</p>
         </div>
       </div>
     </div>

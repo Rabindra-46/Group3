@@ -9,51 +9,117 @@ from .analyzer import analyze_email
 from .models import (
     ROLE_ADMIN,
     create_user,
+    delete_all_email_scans,
+    delete_all_scans_admin,
+    delete_any_email_scan,
+    delete_email_scan,
     enable_2fa,
+    find_any_email_scan,
     find_user_by_email,
     find_user_by_id,
+    find_email_scan,
     get_password_hash,
     get_scan_counts,
     list_all_email_scans,
     list_email_scans,
     list_users,
+    reset_2fa,
     save_2fa_secret,
     save_email_scan,
+    set_user_active,
     verify_password,
 )
 
 main_blueprint = Blueprint('main', __name__)
 
-
-def login_required(view):
-    @wraps(view)
-    def wrapped_view(**kwargs):
-        if session.get('user_id') is None:
-            flash('Please log in to access the dashboard.', 'warning')
-            return redirect(url_for('main.login'))
-
-        if not session.get('is_2fa_verified'):
-            flash('Please complete two-factor authentication first.', 'warning')
-            return redirect(get_2fa_redirect())
-
-        return view(**kwargs)
-
-    return wrapped_view
+AUTH_CONTEXT_USER = 'user'
+AUTH_CONTEXT_ADMIN = 'admin'
+AUTH_SESSION_KEYS = {
+    AUTH_CONTEXT_USER: 'user_auth',
+    AUTH_CONTEXT_ADMIN: 'admin_auth',
+}
 
 
-def role_required(required_role):
+@main_blueprint.app_context_processor
+def inject_auth_sessions():
+    return {
+        'user_auth': get_auth(AUTH_CONTEXT_USER),
+        'admin_auth': get_auth(AUTH_CONTEXT_ADMIN),
+    }
+
+
+def get_auth(context=AUTH_CONTEXT_USER):
+    return session.get(AUTH_SESSION_KEYS[context])
+
+
+def set_auth(user, context=AUTH_CONTEXT_USER):
+    session[AUTH_SESSION_KEYS[context]] = {
+        'user_id': user['id'],
+        'user_email': user['email'],
+        'user_role': user['role'],
+        'is_2fa_verified': False,
+    }
+
+
+def clear_auth(context=AUTH_CONTEXT_USER):
+    session.pop(AUTH_SESSION_KEYS[context], None)
+
+
+def mark_2fa_verified(context=AUTH_CONTEXT_USER):
+    auth = get_auth(context)
+    if auth:
+        auth['is_2fa_verified'] = True
+        session[AUTH_SESSION_KEYS[context]] = auth
+
+
+def login_required(view=None, context=AUTH_CONTEXT_USER):
     def decorator(view):
         @wraps(view)
         def wrapped_view(**kwargs):
-            if session.get('user_id') is None:
+            auth = get_auth(context)
+            if auth is None:
                 flash('Please log in to access this page.', 'warning')
-                return redirect(url_for('main.login'))
+                return redirect(get_login_url(context))
 
-            if not session.get('is_2fa_verified'):
+            user = find_user_by_id(auth['user_id'])
+            if user is None or not user['is_active']:
+                clear_auth(context)
+                flash('Your account is inactive. Please contact an admin.', 'danger')
+                return redirect(get_login_url(context))
+
+            if not auth.get('is_2fa_verified'):
                 flash('Please complete two-factor authentication first.', 'warning')
-                return redirect(get_2fa_redirect())
+                return redirect(get_2fa_redirect(context))
 
-            if session.get('user_role') != required_role:
+            return view(**kwargs)
+
+        return wrapped_view
+
+    if view is None:
+        return decorator
+    return decorator(view)
+
+
+def role_required(required_role, context=AUTH_CONTEXT_ADMIN):
+    def decorator(view):
+        @wraps(view)
+        def wrapped_view(**kwargs):
+            auth = get_auth(context)
+            if auth is None:
+                flash('Please log in to access this page.', 'warning')
+                return redirect(get_login_url(context))
+
+            user = find_user_by_id(auth['user_id'])
+            if user is None or not user['is_active']:
+                clear_auth(context)
+                flash('Your account is inactive. Please contact an admin.', 'danger')
+                return redirect(get_login_url(context))
+
+            if not auth.get('is_2fa_verified'):
+                flash('Please complete two-factor authentication first.', 'warning')
+                return redirect(get_2fa_redirect(context))
+
+            if auth.get('user_role') != required_role:
                 flash('You are not authorized to access that page.', 'danger')
                 return redirect(url_for('main.dashboard'))
 
@@ -64,11 +130,24 @@ def role_required(required_role):
     return decorator
 
 
-def get_2fa_redirect():
-    user = find_user_by_id(session.get('user_id'))
+def get_login_url(context):
+    if context == AUTH_CONTEXT_ADMIN:
+        return url_for('main.admin_login')
+    return url_for('main.login')
+
+
+def get_2fa_redirect(context=AUTH_CONTEXT_USER):
+    auth = get_auth(context)
+    user = find_user_by_id(auth['user_id']) if auth else None
     if user and user['is_2fa_enabled']:
-        return url_for('main.verify_2fa')
-    return url_for('main.setup_2fa')
+        return url_for('main.admin_verify_2fa' if context == AUTH_CONTEXT_ADMIN else 'main.verify_2fa')
+    return url_for('main.admin_setup_2fa' if context == AUTH_CONTEXT_ADMIN else 'main.setup_2fa')
+
+
+def get_after_2fa_url(context=AUTH_CONTEXT_USER):
+    if context == AUTH_CONTEXT_ADMIN:
+        return url_for('main.admin_dashboard')
+    return url_for('main.dashboard')
 
 
 def get_qr_code_data_uri(secret, email):
@@ -92,6 +171,15 @@ def home():
 
 @main_blueprint.route('/login', methods=['GET', 'POST'])
 def login():
+    return handle_login(AUTH_CONTEXT_USER)
+
+
+@main_blueprint.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    return handle_login(AUTH_CONTEXT_ADMIN)
+
+
+def handle_login(context):
     if request.method == 'POST':
         email = request.form['email'].strip().lower()
         password = request.form['password'].strip()
@@ -99,23 +187,27 @@ def login():
 
         if user is None:
             flash('No account found with that email.', 'danger')
+        elif not user['is_active']:
+            flash('This account is inactive. Please contact an admin.', 'danger')
         elif not verify_password(get_password_hash(user), password):
             flash('Invalid password. Please try again.', 'danger')
+        elif context == AUTH_CONTEXT_ADMIN and user['role'] != ROLE_ADMIN:
+            flash('Only admin users can log in to the admin area.', 'danger')
         else:
-            session.clear()
-            session['user_id'] = user['id']
-            session['user_email'] = user['email']
-            session['user_role'] = user['role']
-            session['is_2fa_verified'] = False
+            set_auth(user, context)
 
             if user['is_2fa_enabled']:
                 flash('Password accepted. Enter your authentication code.', 'info')
-                return redirect(url_for('main.verify_2fa'))
+                return redirect(get_2fa_redirect(context))
 
             flash('Password accepted. Set up two-factor authentication to continue.', 'info')
-            return redirect(url_for('main.setup_2fa'))
+            return redirect(get_2fa_redirect(context))
 
-    return render_template('login.html')
+    return render_template(
+        'login.html',
+        auth_context=context,
+        is_admin_login=context == AUTH_CONTEXT_ADMIN,
+    )
 
 
 @main_blueprint.route('/register', methods=['GET', 'POST'])
@@ -141,18 +233,33 @@ def register():
 
 @main_blueprint.route('/2fa/setup', methods=['GET', 'POST'])
 def setup_2fa():
-    if session.get('user_id') is None:
-        flash('Please log in before setting up two-factor authentication.', 'warning')
-        return redirect(url_for('main.login'))
+    return handle_setup_2fa(AUTH_CONTEXT_USER)
 
-    user = find_user_by_id(session['user_id'])
+
+@main_blueprint.route('/admin/2fa/setup', methods=['GET', 'POST'])
+def admin_setup_2fa():
+    return handle_setup_2fa(AUTH_CONTEXT_ADMIN)
+
+
+def handle_setup_2fa(context):
+    auth = get_auth(context)
+    if auth is None:
+        flash('Please log in before setting up two-factor authentication.', 'warning')
+        return redirect(get_login_url(context))
+
+    user = find_user_by_id(auth['user_id'])
     if user is None:
-        session.clear()
+        clear_auth(context)
         flash('Your session expired. Please log in again.', 'warning')
-        return redirect(url_for('main.login'))
+        return redirect(get_login_url(context))
+
+    if not user['is_active']:
+        clear_auth(context)
+        flash('Your account is inactive. Please contact an admin.', 'danger')
+        return redirect(get_login_url(context))
 
     if user['is_2fa_enabled']:
-        return redirect(url_for('main.verify_2fa'))
+        return redirect(get_2fa_redirect(context))
 
     secret = user['two_factor_secret']
     if not secret:
@@ -163,9 +270,9 @@ def setup_2fa():
         otp_code = request.form['otp_code'].strip()
         if pyotp.TOTP(secret).verify(otp_code, valid_window=1):
             enable_2fa(user['id'])
-            session['is_2fa_verified'] = True
+            mark_2fa_verified(context)
             flash('Two-factor authentication is now enabled.', 'success')
-            return redirect(url_for('main.dashboard'))
+            return redirect(get_after_2fa_url(context))
 
         flash('Invalid OTP code. If it expired, enter the newest code from your authenticator app.', 'danger')
 
@@ -173,51 +280,72 @@ def setup_2fa():
         'setup_2fa.html',
         qr_code=get_qr_code_data_uri(secret, user['email']),
         secret=secret,
+        is_admin_login=context == AUTH_CONTEXT_ADMIN,
     )
 
 
 @main_blueprint.route('/2fa/verify', methods=['GET', 'POST'])
 def verify_2fa():
-    if session.get('user_id') is None:
-        flash('Please log in before entering your authentication code.', 'warning')
-        return redirect(url_for('main.login'))
+    return handle_verify_2fa(AUTH_CONTEXT_USER)
 
-    user = find_user_by_id(session['user_id'])
+
+@main_blueprint.route('/admin/2fa/verify', methods=['GET', 'POST'])
+def admin_verify_2fa():
+    return handle_verify_2fa(AUTH_CONTEXT_ADMIN)
+
+
+def handle_verify_2fa(context):
+    auth = get_auth(context)
+    if auth is None:
+        flash('Please log in before entering your authentication code.', 'warning')
+        return redirect(get_login_url(context))
+
+    user = find_user_by_id(auth['user_id'])
     if user is None:
-        session.clear()
+        clear_auth(context)
         flash('Your session expired. Please log in again.', 'warning')
-        return redirect(url_for('main.login'))
+        return redirect(get_login_url(context))
+
+    if not user['is_active']:
+        clear_auth(context)
+        flash('Your account is inactive. Please contact an admin.', 'danger')
+        return redirect(get_login_url(context))
 
     if not user['is_2fa_enabled']:
-        return redirect(url_for('main.setup_2fa'))
+        return redirect(get_2fa_redirect(context))
 
     if request.method == 'POST':
         otp_code = request.form['otp_code'].strip()
         if pyotp.TOTP(user['two_factor_secret']).verify(otp_code, valid_window=1):
-            session['is_2fa_verified'] = True
+            mark_2fa_verified(context)
             flash('Two-factor authentication verified.', 'success')
-            return redirect(url_for('main.dashboard'))
+            return redirect(get_after_2fa_url(context))
 
         flash('Invalid OTP code. If it expired, enter the newest code from your authenticator app.', 'danger')
 
-    return render_template('verify_2fa.html')
+    return render_template(
+        'verify_2fa.html',
+        is_admin_login=context == AUTH_CONTEXT_ADMIN,
+    )
 
 
 @main_blueprint.route('/dashboard')
 @login_required
 def dashboard():
+    auth = get_auth(AUTH_CONTEXT_USER)
     return render_template(
-        'dashboard.html',
-        user_email=session.get('user_email'),
-        user_role=session.get('user_role'),
-        recent_scans=list_email_scans(session['user_id'])[:3],
-        scan_counts=get_scan_counts(session['user_id']),
+        'user_dashboard.html',
+        user_email=auth['user_email'],
+        user_role=auth['user_role'],
+        recent_scans=list_email_scans(auth['user_id'])[:3],
+        scan_counts=get_scan_counts(auth['user_id']),
     )
 
 
 @main_blueprint.route('/analyze', methods=['GET', 'POST'])
 @login_required
 def analyze():
+    auth = get_auth(AUTH_CONTEXT_USER)
     result = None
     raw_email = ''
     email_text = ''
@@ -239,7 +367,7 @@ def analyze():
             flash('Please paste an email or upload a .eml file before analyzing.', 'warning')
         else:
             result = analyze_email(raw_email)
-            save_email_scan(session['user_id'], result)
+            save_email_scan(auth['user_id'], result)
             flash('Email analyzed and saved to your scan history.', 'success')
 
     return render_template(
@@ -247,34 +375,202 @@ def analyze():
         result=result,
         raw_email=email_text,
         source_name=source_name,
-        user_role=session.get('user_role'),
+        user_role=auth['user_role'],
     )
 
 
 @main_blueprint.route('/scans')
 @login_required
 def scan_history():
+    auth = get_auth(AUTH_CONTEXT_USER)
     return render_template(
         'scan_history.html',
-        scans=list_email_scans(session['user_id']),
-        user_role=session.get('user_role'),
+        scans=list_email_scans(auth['user_id']),
+        user_role=auth['user_role'],
     )
+
+
+@main_blueprint.route('/quarantine')
+@login_required
+def quarantine():
+    auth = get_auth(AUTH_CONTEXT_USER)
+    scans = [
+        scan for scan in list_email_scans(auth['user_id'])
+        if scan['result_label'] in ['Phishing', 'Suspicious']
+    ]
+    return render_template(
+        'quarantine.html',
+        scans=scans,
+        user_role=auth['user_role'],
+    )
+
+
+@main_blueprint.route('/admin/quarantine')
+@role_required(ROLE_ADMIN)
+def admin_quarantine():
+    auth = get_auth(AUTH_CONTEXT_ADMIN)
+    scans = [
+        scan for scan in list_all_email_scans()
+        if scan['result_label'] in ['Phishing', 'Suspicious']
+    ]
+    return render_template(
+        'quarantine.html',
+        scans=scans,
+        user_role=auth['user_role'],
+        is_admin_view=True,
+    )
+
+
+@main_blueprint.route('/scans/<int:scan_id>')
+@login_required
+def scan_detail(scan_id):
+    auth = get_auth(AUTH_CONTEXT_USER)
+    scan = find_email_scan(scan_id, auth['user_id'])
+    if scan is None:
+        flash('Scan report not found.', 'warning')
+        return redirect(url_for('main.scan_history'))
+
+    return render_template(
+        'scan_detail.html',
+        scan=scan,
+        user_role=auth['user_role'],
+    )
+
+
+@main_blueprint.route('/scans/<int:scan_id>/delete', methods=['POST'])
+@login_required
+def delete_scan(scan_id):
+    auth = get_auth(AUTH_CONTEXT_USER)
+    deleted_count = delete_email_scan(scan_id, auth['user_id'])
+    if deleted_count:
+        flash('Scan report deleted.', 'success')
+    else:
+        flash('Scan report not found.', 'warning')
+    return redirect(url_for('main.scan_history'))
+
+
+@main_blueprint.route('/scans/delete-all', methods=['POST'])
+@login_required
+def delete_all_scans():
+    auth = get_auth(AUTH_CONTEXT_USER)
+    deleted_count = delete_all_email_scans(auth['user_id'])
+    flash(f'Deleted {deleted_count} scan report(s).', 'success')
+    return redirect(url_for('main.scan_history'))
 
 
 @main_blueprint.route('/admin/dashboard')
 @role_required(ROLE_ADMIN)
 def admin_dashboard():
+    auth = get_auth(AUTH_CONTEXT_ADMIN)
     return render_template(
         'admin_dashboard.html',
-        user_email=session.get('user_email'),
-        user_role=session.get('user_role'),
-        users=list_users(),
+        user_email=auth['user_email'],
+        user_role=auth['user_role'],
         scans=list_all_email_scans(),
     )
 
 
+@main_blueprint.route('/admin/users')
+@role_required(ROLE_ADMIN)
+def admin_users():
+    auth = get_auth(AUTH_CONTEXT_ADMIN)
+    return render_template(
+        'admin_users.html',
+        user_email=auth['user_email'],
+        user_role=auth['user_role'],
+        current_admin_id=auth['user_id'],
+        users=list_users(),
+    )
+
+
+@main_blueprint.route('/admin/users/<int:user_id>/activate', methods=['POST'])
+@role_required(ROLE_ADMIN)
+def admin_activate_user(user_id):
+    updated_count = set_user_active(user_id, True)
+    if updated_count:
+        flash('User account activated.', 'success')
+    else:
+        flash('User not found.', 'warning')
+    return redirect(url_for('main.admin_users'))
+
+
+@main_blueprint.route('/admin/users/<int:user_id>/deactivate', methods=['POST'])
+@role_required(ROLE_ADMIN)
+def admin_deactivate_user(user_id):
+    auth = get_auth(AUTH_CONTEXT_ADMIN)
+    if user_id == auth['user_id']:
+        flash('You cannot deactivate your own admin account while signed in.', 'warning')
+        return redirect(url_for('main.admin_users'))
+
+    updated_count = set_user_active(user_id, False)
+    if updated_count:
+        flash('User account deactivated.', 'success')
+    else:
+        flash('User not found.', 'warning')
+    return redirect(url_for('main.admin_users'))
+
+
+@main_blueprint.route('/admin/scans/<int:scan_id>')
+@role_required(ROLE_ADMIN)
+def admin_scan_detail(scan_id):
+    auth = get_auth(AUTH_CONTEXT_ADMIN)
+    scan = find_any_email_scan(scan_id)
+    if scan is None:
+        flash('Scan report not found.', 'warning')
+        return redirect(url_for('main.admin_dashboard'))
+
+    return render_template(
+        'scan_detail.html',
+        scan=scan,
+        user_role=auth['user_role'],
+        is_admin_view=True,
+    )
+
+
+@main_blueprint.route('/admin/scans/<int:scan_id>/delete', methods=['POST'])
+@role_required(ROLE_ADMIN)
+def admin_delete_scan(scan_id):
+    deleted_count = delete_any_email_scan(scan_id)
+    if deleted_count:
+        flash('Scan report deleted by admin.', 'success')
+    else:
+        flash('Scan report not found.', 'warning')
+    return redirect(url_for('main.admin_dashboard'))
+
+
+@main_blueprint.route('/admin/users/<int:user_id>/reset-2fa', methods=['POST'])
+@role_required(ROLE_ADMIN)
+def admin_reset_user_2fa(user_id):
+    auth = get_auth(AUTH_CONTEXT_ADMIN)
+    if user_id == auth['user_id']:
+        flash('For your own admin account, use the local reset command shown in the project notes.', 'warning')
+        return redirect(url_for('main.admin_users'))
+
+    updated_count = reset_2fa(user_id)
+    if updated_count:
+        flash('Two-factor authentication was reset. The user will see a new QR code on next login.', 'success')
+    else:
+        flash('User not found.', 'warning')
+    return redirect(url_for('main.admin_users'))
+
+
+@main_blueprint.route('/admin/scans/delete-all', methods=['POST'])
+@role_required(ROLE_ADMIN)
+def admin_delete_all_scans():
+    deleted_count = delete_all_scans_admin()
+    flash(f'Admin deleted {deleted_count} scan report(s).', 'success')
+    return redirect(url_for('main.admin_dashboard'))
+
+
 @main_blueprint.route('/logout')
 def logout():
-    session.clear()
-    flash('You have been logged out.', 'info')
+    clear_auth(AUTH_CONTEXT_USER)
+    flash('User session logged out.', 'info')
+    return redirect(url_for('main.home'))
+
+
+@main_blueprint.route('/admin/logout')
+def admin_logout():
+    clear_auth(AUTH_CONTEXT_ADMIN)
+    flash('Admin session logged out.', 'info')
     return redirect(url_for('main.home'))

@@ -4,62 +4,187 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Phishing Detector{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/adminlte/css/adminlte.min.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
   </head>
-  <body>
-    <header class="site-header">
-      <nav class="navbar navbar-expand-lg">
-        <div class="container">
-          <a class="navbar-brand" href="{{ url_for('main.home') }}">
-            <span class="brand-mark">PD</span>
-            <span>PhishDefender</span>
-          </a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="mainNav">
+  {% set is_admin_area = request.path.startswith('/admin') %}
+  {% set shell_auth = admin_auth if is_admin_area else user_auth %}
+  {% set auth_pages = ['main.home', 'main.login', 'main.admin_login', 'main.register', 'main.setup_2fa', 'main.admin_setup_2fa', 'main.verify_2fa', 'main.admin_verify_2fa'] %}
+  {% set is_app_page = shell_auth and request.endpoint not in auth_pages %}
+  <body class="{% if is_app_page %}layout-fixed sidebar-expand-lg bg-body-tertiary{% else %}public-page{% endif %}">
+    {% if is_app_page %}
+      <div class="app-wrapper">
+        <nav class="app-header navbar navbar-expand bg-body">
+          <div class="container-fluid">
+            <ul class="navbar-nav">
+              <li class="nav-item">
+                <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button" aria-label="Toggle sidebar">
+                  <span class="nav-icon-text">MENU</span>
+                </a>
+              </li>
+              <li class="nav-item d-none d-md-block">
+                <span class="nav-link fw-semibold">{% block page_heading %}Security Workspace{% endblock %}</span>
+              </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+              <li class="nav-item">
+                <span class="nav-link">{{ shell_auth.user_email }}</span>
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        <aside class="app-sidebar bg-dark shadow" data-bs-theme="dark">
+          <div class="sidebar-brand">
+            <a href="{{ url_for('main.home') }}" class="brand-link">
+              <img src="{{ url_for('static', filename='vendor/adminlte/assets/img/AdminLTELogo.png') }}" alt="PhishDefender" class="brand-image opacity-75 shadow" />
+              <span class="brand-text fw-light">PhishDefender</span>
+            </a>
+          </div>
+          <div class="sidebar-wrapper">
+            <nav class="mt-2">
+              <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu">
+                {% if is_admin_area %}
+                  <li class="nav-header">ADMIN</li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.admin_dashboard') }}" class="nav-link {% if request.endpoint in ['main.admin_dashboard', 'main.admin_scan_detail'] %}active{% endif %}">
+                      <span class="nav-icon">D</span>
+                      <p>Dashboard</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.admin_quarantine') }}" class="nav-link {% if request.endpoint == 'main.admin_quarantine' %}active{% endif %}">
+                      <span class="nav-icon">!</span>
+                      <p>Quarantine</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.admin_dashboard') }}#reports" class="nav-link">
+                      <span class="nav-icon">R</span>
+                      <p>Reports</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.admin_users') }}" class="nav-link {% if request.endpoint in ['main.admin_users', 'main.admin_activate_user', 'main.admin_deactivate_user'] %}active{% endif %}">
+                      <span class="nav-icon">U</span>
+                      <p>Users</p>
+                    </a>
+                  </li>
+                  <li class="nav-item mt-2">
+                    <a href="{{ url_for('main.admin_logout') }}" class="nav-link">
+                      <span class="nav-icon">OUT</span>
+                      <p>Logout</p>
+                    </a>
+                  </li>
+                {% else %}
+                  <li class="nav-header">USER</li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                      <span class="nav-icon">D</span>
+                      <p>Dashboard</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.analyze') }}" class="nav-link {% if request.endpoint == 'main.analyze' %}active{% endif %}">
+                      <span class="nav-icon">A</span>
+                      <p>Analyze Email</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.quarantine') }}" class="nav-link {% if request.endpoint == 'main.quarantine' %}active{% endif %}">
+                      <span class="nav-icon">!</span>
+                      <p>Quarantine</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ url_for('main.scan_history') }}" class="nav-link {% if request.endpoint in ['main.scan_history', 'main.scan_detail'] %}active{% endif %}">
+                      <span class="nav-icon">R</span>
+                      <p>Reports</p>
+                    </a>
+                  </li>
+                  {% if shell_auth.user_role == 'admin' %}
+                    <li class="nav-header">ADMIN ACCESS</li>
+                    <li class="nav-item">
+                      <a href="{{ url_for('main.admin_dashboard') }}" class="nav-link">
+                        <span class="nav-icon">AD</span>
+                        <p>Admin Dashboard</p>
+                      </a>
+                    </li>
+                  {% endif %}
+                  <li class="nav-item mt-2">
+                    <a href="{{ url_for('main.logout') }}" class="nav-link">
+                      <span class="nav-icon">OUT</span>
+                      <p>Logout</p>
+                    </a>
+                  </li>
+                {% endif %}
+              </ul>
+            </nav>
+          </div>
+        </aside>
+
+        <main class="app-main">
+          <div class="app-content-header">
+            <div class="container-fluid">
+    {% else %}
+      <header class="public-header">
+        <nav class="navbar navbar-expand-lg">
+          <div class="container">
+            <a class="navbar-brand" href="{{ url_for('main.home') }}">
+              <span class="brand-mark">PD</span>
+              <span>PhishDefender</span>
+            </a>
             <div class="navbar-nav ms-auto align-items-lg-center">
               <a class="nav-link" href="{{ url_for('main.home') }}">Home</a>
-              {% if session.get('user_email') %}
-                <a class="nav-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
-                {% if session.get('user_role') == 'admin' %}
-                  <a class="nav-link" href="{{ url_for('main.admin_dashboard') }}">Admin</a>
-                {% endif %}
-                <a class="btn btn-outline-light btn-sm ms-lg-3" href="{{ url_for('main.logout') }}">Logout</a>
+              {% if is_admin_area %}
+                <a class="nav-link" href="{{ url_for('main.admin_login') }}">Admin login</a>
               {% else %}
                 <a class="nav-link" href="{{ url_for('main.login') }}">Login</a>
                 <a class="btn btn-light btn-sm ms-lg-3" href="{{ url_for('main.register') }}">Create account</a>
               {% endif %}
             </div>
           </div>
-        </div>
-      </nav>
-    </header>
+        </nav>
+      </header>
+      <main class="public-main">
+        <div class="container flash-container">
+    {% endif %}
 
-    <main class="page-shell">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="container flash-container">
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div>
-            {% endfor %}
+              {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                  {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                      {{ message }}
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              {% endwith %}
+              {% if is_app_page %}
+                {% block content_header %}{% endblock %}
+              {% endif %}
+
+    {% if is_app_page %}
+            </div>
           </div>
-        {% endif %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </main>
+          <div class="app-content">
+            <div class="container-fluid">
+    {% else %}
+        </div>
+    {% endif %}
 
-    <footer class="site-footer">
-      <div class="container">
-        <span>Phishing Email Detector</span>
-        <span class="footer-dot"></span>
-        <span>Secure analysis workspace</span>
+              {% block content %}{% endblock %}
+
+    {% if is_app_page %}
+            </div>
+          </div>
+        </main>
       </div>
-    </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    {% else %}
+      </main>
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='vendor/adminlte/js/adminlte.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   </body>
 </html>

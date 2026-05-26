@@ -1,144 +1,107 @@
 {% extends 'base.html' %}
 
 {% block title %}Analyze Email - Phishing Detector{% endblock %}
+{% block page_heading %}Analyze Email{% endblock %}
+
+{% block content_header %}
+  <div class="row">
+    <div class="col-sm-8">
+      <h1 class="m-0">Analyze Email</h1>
+      <p class="text-secondary mb-0">Upload a .eml file or paste raw email text to check for phishing indicators.</p>
+    </div>
+  </div>
+{% endblock %}
 
 {% block content %}
-  <section class="dashboard-page">
-    <div class="container">
-      <div class="dashboard-header">
-        <div>
-          <p class="eyebrow">Email analyzer</p>
-          <h1>Analyze Email</h1>
-          <p class="muted-text">Upload a real .eml file or paste raw email text to check for phishing indicators.</p>
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Email input</h3>
         </div>
-      </div>
-
-      <div class="row g-4">
-        <div class="col-lg-3">
-          <aside class="sidebar-panel">
-            <h2>Menu</h2>
-            <a class="sidebar-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
-            <a class="sidebar-link active" href="{{ url_for('main.analyze') }}">Analyze email</a>
-            <a class="sidebar-link" href="{{ url_for('main.scan_history') }}">My reports</a>
-            {% if user_role == 'admin' %}
-              <hr>
-              <a class="sidebar-link" href="{{ url_for('main.admin_dashboard') }}">Admin dashboard</a>
-            {% endif %}
-          </aside>
-        </div>
-
-        <div class="col-lg-9">
-          <div class="workspace-panel">
-            <div class="panel-heading">
-              <div>
-                <h2>Email input</h2>
-                <p>Upload a .eml file for best accuracy, or paste the full email including headers.</p>
-              </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label class="form-label" for="email_file">Upload .eml file</label>
+              <input class="form-control" id="email_file" name="email_file" type="file" accept=".eml,message/rfc822">
             </div>
-            <form method="post" enctype="multipart/form-data">
-              <div class="mb-3">
-                <label class="form-label" for="email_file">Upload .eml file</label>
-                <input class="form-control" id="email_file" name="email_file" type="file" accept=".eml,message/rfc822">
-              </div>
-              <div class="input-divider">or paste email text</div>
-              <div class="mb-3">
-                <label class="form-label" for="raw_email">Email content</label>
-                <textarea class="form-control scan-box" id="raw_email" name="raw_email" rows="12">{{ raw_email }}</textarea>
-              </div>
-              <button class="btn btn-primary" type="submit">Analyze email</button>
-            </form>
-            <p class="form-note">For best results, upload the original .eml file because it includes headers used for SPF, DKIM, DMARC, sender, and reply-path checks.</p>
-          </div>
-
-          {% if result %}
-            <div class="workspace-panel mt-4">
-              <div class="result-header">
-                <span class="risk-pill large {{ result.result_color }}">{{ result.result_label }}</span>
-                <div>
-                  <h2>{{ result.risk_score }}/100 risk score</h2>
-                  <p class="muted-text">{{ result.confidence }}% confidence based on available email evidence. Green = Safe 0-30, Yellow = Suspicious 31-65, Red = Phishing 66-100.</p>
-                </div>
-              </div>
-              <p class="form-note">Source analyzed: <strong>{{ source_name }}</strong></p>
-              <p class="form-note">This is an evidence-based phishing score, not a guaranteed verdict. Real investigations should also check reputation, user context, and mail server logs.</p>
-
-              <div class="row g-3 mt-2">
-                <div class="col-md-6">
-                  <div class="detail-box">
-                    <span>Sender</span>
-                    <strong>{{ result.sender }}</strong>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="detail-box">
-                    <span>Subject</span>
-                    <strong>{{ result.subject }}</strong>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="detail-box">
-                    <span>Reply-To</span>
-                    <strong>{{ result.reply_to }}</strong>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="detail-box">
-                    <span>Return-Path</span>
-                    <strong>{{ result.return_path }}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <h2 class="mt-4">Authentication headers</h2>
-              <div class="detail-box">
-                <span>Authentication-Results</span>
-                <strong>{{ result.authentication_results }}</strong>
-              </div>
-
-              <h2 class="mt-4">Extracted email body</h2>
-              <div class="email-body-preview">{{ result.body_preview }}</div>
-
-              <h2 class="mt-4">Flags and reasons</h2>
-              <div class="reason-list">
-                {% for reason in result.reasons %}
-                  <div class="reason-item">{{ reason }}</div>
-                {% endfor %}
-              </div>
-
-              {% if result.safe_signals %}
-                <h2 class="mt-4">Safe signals</h2>
-                <div class="reason-list">
-                  {% for signal in result.safe_signals %}
-                    <div class="reason-item safe-reason">{{ signal }}</div>
-                  {% endfor %}
-                </div>
-              {% endif %}
-
-              <h2 class="mt-4">Extracted URLs</h2>
-              {% if result.urls %}
-                <ul class="extracted-list">
-                  {% for url in result.urls %}
-                    <li>{{ url }}</li>
-                  {% endfor %}
-                </ul>
-              {% else %}
-                <p class="muted-text">No URLs found.</p>
-              {% endif %}
-
-              <h2 class="mt-4">Attachments</h2>
-              {% if result.attachments %}
-                <ul class="extracted-list">
-                  {% for attachment in result.attachments %}
-                    <li>{{ attachment }}</li>
-                  {% endfor %}
-                </ul>
-              {% else %}
-                <p class="muted-text">No attachments found.</p>
-              {% endif %}
+            <div class="text-center text-secondary fw-semibold my-3">or paste email text</div>
+            <div class="mb-3">
+              <label class="form-label" for="raw_email">Email content</label>
+              <textarea class="form-control scan-box" id="raw_email" name="raw_email" rows="12">{{ raw_email }}</textarea>
             </div>
-          {% endif %}
+            <button class="btn btn-primary" type="submit">Analyze email</button>
+          </form>
+          <p class="text-secondary mt-3 mb-0">For best results, upload the original .eml file because it includes mail headers.</p>
         </div>
       </div>
     </div>
-  </section>
+
+    <div class="col-lg-7">
+      {% if result %}
+        <div class="card">
+          <div class="card-header d-flex align-items-center gap-3">
+            <span class="badge risk-{{ result.result_color }}">{{ result.result_label }}</span>
+            <h3 class="card-title mb-0">{{ result.risk_score }}/100 risk score</h3>
+          </div>
+          <div class="card-body">
+            <p class="text-secondary">{{ result.confidence }}% confidence. Source analyzed: <strong>{{ source_name }}</strong></p>
+
+            <div class="row g-3">
+              <div class="col-md-6"><div class="detail-box"><span>Sender</span><strong>{{ result.sender }}</strong></div></div>
+              <div class="col-md-6"><div class="detail-box"><span>Subject</span><strong>{{ result.subject }}</strong></div></div>
+              <div class="col-md-6"><div class="detail-box"><span>Reply-To</span><strong>{{ result.reply_to }}</strong></div></div>
+              <div class="col-md-6"><div class="detail-box"><span>Return-Path</span><strong>{{ result.return_path }}</strong></div></div>
+            </div>
+
+            <h4 class="section-title">Authentication headers</h4>
+            <div class="detail-box"><span>Authentication-Results</span><strong>{{ result.authentication_results }}</strong></div>
+
+            <h4 class="section-title">Email body preview</h4>
+            <div class="email-body-preview">{{ result.body_preview }}</div>
+
+            <h4 class="section-title">Flags and reasons</h4>
+            <div class="reason-list">
+              {% for reason in result.reasons %}
+                <div class="reason-item">{{ reason }}</div>
+              {% endfor %}
+            </div>
+
+            {% if result.safe_signals %}
+              <h4 class="section-title">Safe signals</h4>
+              <div class="reason-list">
+                {% for signal in result.safe_signals %}
+                  <div class="reason-item safe-reason">{{ signal }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <h4 class="section-title">Extracted URLs</h4>
+            {% if result.urls %}
+              <ul class="extracted-list">
+                {% for url in result.urls %}<li>{{ url }}</li>{% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-secondary">No URLs found.</p>
+            {% endif %}
+
+            <h4 class="section-title">Attachments</h4>
+            {% if result.attachments %}
+              <ul class="extracted-list">
+                {% for attachment in result.attachments %}<li>{{ attachment }}</li>{% endfor %}
+              </ul>
+            {% else %}
+              <p class="text-secondary">No attachments found.</p>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="card">
+          <div class="card-body text-secondary">
+            Analysis results will appear here after you submit an email.
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
 {% endblock %}

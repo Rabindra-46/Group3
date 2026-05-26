@@ -21,7 +21,11 @@ def find_user_by_id(user_id):
 def list_users():
     db = get_db()
     return db.execute(
-        'SELECT id, email, role, is_2fa_enabled, created_at FROM users ORDER BY created_at DESC'
+        '''
+        SELECT id, email, role, is_active, is_2fa_enabled, created_at
+        FROM users
+        ORDER BY created_at DESC
+        '''
     ).fetchall()
 
 
@@ -72,6 +76,31 @@ def enable_2fa(user_id):
     db.commit()
 
 
+def reset_2fa(user_id):
+    db = get_db()
+    cursor = db.execute(
+        '''
+        UPDATE users
+        SET is_2fa_enabled = 0,
+            two_factor_secret = NULL
+        WHERE id = ?
+        ''',
+        (user_id,),
+    )
+    db.commit()
+    return cursor.rowcount
+
+
+def set_user_active(user_id, is_active):
+    db = get_db()
+    cursor = db.execute(
+        'UPDATE users SET is_active = ? WHERE id = ?',
+        (1 if is_active else 0, user_id),
+    )
+    db.commit()
+    return cursor.rowcount
+
+
 def save_email_scan(user_id, result):
     db = get_db()
     cursor = db.execute(
@@ -80,20 +109,28 @@ def save_email_scan(user_id, result):
             user_id,
             sender,
             subject,
+            reply_to,
+            return_path,
+            authentication_results,
             body_preview,
             urls,
             attachments,
             risk_score,
             result_label,
             result_color,
-            reasons
+            reasons,
+            safe_signals,
+            confidence
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''',
         (
             user_id,
             result['sender'],
             result['subject'],
+            result['reply_to'],
+            result['return_path'],
+            result['authentication_results'],
             result['body_preview'],
             dumps_list(result['urls']),
             dumps_list(result['attachments']),
@@ -101,6 +138,8 @@ def save_email_scan(user_id, result):
             result['result_label'],
             result['result_color'],
             dumps_list(result['reasons']),
+            dumps_list(result['safe_signals']),
+            result['confidence'],
         ),
     )
     db.commit()
@@ -119,6 +158,57 @@ def list_email_scans(user_id):
         (user_id,),
     ).fetchall()
     return [format_scan(row) for row in rows]
+
+
+def find_email_scan(scan_id, user_id):
+    db = get_db()
+    row = db.execute(
+        '''
+        SELECT *
+        FROM email_scans
+        WHERE id = ? AND user_id = ?
+        ''',
+        (scan_id, user_id),
+    ).fetchone()
+    if row is None:
+        return None
+    return format_scan(row)
+
+
+def find_any_email_scan(scan_id):
+    db = get_db()
+    row = db.execute(
+        '''
+        SELECT email_scans.*, users.email AS user_email
+        FROM email_scans
+        JOIN users ON users.id = email_scans.user_id
+        WHERE email_scans.id = ?
+        ''',
+        (scan_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return format_scan(row)
+
+
+def delete_email_scan(scan_id, user_id):
+    db = get_db()
+    cursor = db.execute(
+        'DELETE FROM email_scans WHERE id = ? AND user_id = ?',
+        (scan_id, user_id),
+    )
+    db.commit()
+    return cursor.rowcount
+
+
+def delete_all_email_scans(user_id):
+    db = get_db()
+    cursor = db.execute(
+        'DELETE FROM email_scans WHERE user_id = ?',
+        (user_id,),
+    )
+    db.commit()
+    return cursor.rowcount
 
 
 def get_scan_counts(user_id):
@@ -145,9 +235,25 @@ def list_all_email_scans():
     return [format_scan(row) for row in rows]
 
 
+def delete_any_email_scan(scan_id):
+    db = get_db()
+    cursor = db.execute('DELETE FROM email_scans WHERE id = ?', (scan_id,))
+    db.commit()
+    return cursor.rowcount
+
+
+def delete_all_scans_admin():
+    db = get_db()
+    cursor = db.execute('DELETE FROM email_scans')
+    db.commit()
+    return cursor.rowcount
+
+
 def format_scan(row):
     scan = dict(row)
     scan['urls'] = loads_list(scan.get('urls'))
     scan['attachments'] = loads_list(scan.get('attachments'))
     scan['reasons'] = loads_list(scan.get('reasons'))
+    scan['safe_signals'] = loads_list(scan.get('safe_signals'))
+    scan['confidence'] = scan.get('confidence') or 0
     return scan

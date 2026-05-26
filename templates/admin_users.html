@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Users - Phishing Detector{% endblock %}
+{% block page_heading %}Manage Users{% endblock %}
+
+{% block content_header %}
+  <div class="row">
+    <div class="col-sm-8">
+      <h1 class="m-0">User management</h1>
+      <p class="text-secondary mb-0">Activate, deactivate, and reset 2FA for registered accounts.</p>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Registered users</h3>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>2FA</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+              <tr>
+                <td>{{ user.email }}</td>
+                <td><span class="badge text-bg-primary">{{ user.role|title }}</span></td>
+                <td>
+                  {% if user.is_active %}
+                    <span class="badge text-bg-success">Active</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Inactive</span>
+                  {% endif %}
+                </td>
+                <td>{{ 'Enabled' if user.is_2fa_enabled else 'Disabled' }}</td>
+                <td>{{ user.created_at or 'Not recorded' }}</td>
+                <td>
+                  <div class="table-actions">
+                    {% if user.id == current_admin_id %}
+                      <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Current admin</button>
+                    {% elif user.is_active %}
+                      <form method="post" action="{{ url_for('main.admin_deactivate_user', user_id=user.id) }}" onsubmit="return confirm('Deactivate this user? They will not be able to log in.');">
+                        <button class="btn btn-outline-danger btn-sm" type="submit">Deactivate</button>
+                      </form>
+                    {% else %}
+                      <form method="post" action="{{ url_for('main.admin_activate_user', user_id=user.id) }}">
+                        <button class="btn btn-outline-success btn-sm" type="submit">Activate</button>
+                      </form>
+                    {% endif %}
+
+                    {% if user.is_2fa_enabled %}
+                      <form method="post" action="{{ url_for('main.admin_reset_user_2fa', user_id=user.id) }}" onsubmit="return confirm('Reset 2FA for this user? They will need to scan a new QR code on next login.');">
+                        <button class="btn btn-outline-warning btn-sm" type="submit">Reset 2FA</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="6" class="text-secondary">No users found.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}
