@@ -5,6 +5,7 @@ from functools import wraps
 import pyotp
 import qrcode
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from .analyzer import analyze_email
 from .models import (
     ROLE_ADMIN,
     create_user,
@@ -12,8 +13,12 @@ from .models import (
     find_user_by_email,
     find_user_by_id,
     get_password_hash,
+    get_scan_counts,
+    list_all_email_scans,
+    list_email_scans,
     list_users,
     save_2fa_secret,
+    save_email_scan,
     verify_password,
 )
 
@@ -205,6 +210,54 @@ def dashboard():
         'dashboard.html',
         user_email=session.get('user_email'),
         user_role=session.get('user_role'),
+        recent_scans=list_email_scans(session['user_id'])[:3],
+        scan_counts=get_scan_counts(session['user_id']),
+    )
+
+
+@main_blueprint.route('/analyze', methods=['GET', 'POST'])
+@login_required
+def analyze():
+    result = None
+    raw_email = ''
+    email_text = ''
+    source_name = 'Pasted email'
+
+    if request.method == 'POST':
+        uploaded_file = request.files.get('email_file')
+        if uploaded_file and uploaded_file.filename:
+            if not uploaded_file.filename.lower().endswith('.eml'):
+                flash('Please upload a .eml email file.', 'warning')
+            else:
+                raw_email = uploaded_file.read().decode('utf-8', errors='replace').strip()
+                source_name = uploaded_file.filename
+        else:
+            raw_email = request.form['raw_email'].strip()
+            email_text = raw_email
+
+        if not raw_email:
+            flash('Please paste an email or upload a .eml file before analyzing.', 'warning')
+        else:
+            result = analyze_email(raw_email)
+            save_email_scan(session['user_id'], result)
+            flash('Email analyzed and saved to your scan history.', 'success')
+
+    return render_template(
+        'analyze_email.html',
+        result=result,
+        raw_email=email_text,
+        source_name=source_name,
+        user_role=session.get('user_role'),
+    )
+
+
+@main_blueprint.route('/scans')
+@login_required
+def scan_history():
+    return render_template(
+        'scan_history.html',
+        scans=list_email_scans(session['user_id']),
+        user_role=session.get('user_role'),
     )
 
 
@@ -216,6 +269,7 @@ def admin_dashboard():
         user_email=session.get('user_email'),
         user_role=session.get('user_role'),
         users=list_users(),
+        scans=list_all_email_scans(),
     )
 
 

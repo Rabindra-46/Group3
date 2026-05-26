@@ -18,8 +18,9 @@
         <div class="col-lg-3">
           <aside class="sidebar-panel">
             <h2>Menu</h2>
-            <a class="sidebar-link active" href="{{ url_for('main.dashboard') }}">Scan email</a>
-            <a class="sidebar-link" href="#">My reports</a>
+            <a class="sidebar-link active" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+            <a class="sidebar-link" href="{{ url_for('main.analyze') }}">Analyze email</a>
+            <a class="sidebar-link" href="{{ url_for('main.scan_history') }}">My reports</a>
             <a class="sidebar-link" href="#">Account</a>
             {% if user_role == 'admin' %}
               <hr>
@@ -34,22 +35,26 @@
           <div class="workspace-panel">
             <div class="panel-heading">
               <div>
-                <h2>Scan email content</h2>
-                <p>Paste the sender, subject, links, and body text.</p>
+                <h2>Analyze suspicious email</h2>
+                <p>Paste raw email content on the analysis page to calculate a risk score.</p>
               </div>
               <span class="status-pill">Ready</span>
             </div>
-            <form>
-              <div class="mb-3">
-                <label class="form-label" for="email_subject">Subject</label>
-                <input class="form-control" id="email_subject" type="text" placeholder="Example: Your mailbox password expires today">
+            <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Open analyzer</a>
+
+            <hr>
+            <h2>Recent scans</h2>
+            {% for scan in recent_scans %}
+              <div class="scan-summary">
+                <span class="risk-pill {{ scan.result_color }}">{{ scan.result_label }}</span>
+                <div>
+                  <strong>{{ scan.subject }}</strong>
+                  <p>{{ scan.risk_score }}/100 risk score</p>
+                </div>
               </div>
-              <div class="mb-3">
-                <label class="form-label" for="email_body">Email body</label>
-                <textarea class="form-control scan-box" id="email_body" rows="9" placeholder="Paste suspicious email content here"></textarea>
-              </div>
-              <button class="btn btn-primary" type="button">Analyze email</button>
-            </form>
+            {% else %}
+              <p class="muted-text">No scans saved yet.</p>
+            {% endfor %}
           </div>
         </div>
 
@@ -75,16 +80,20 @@
           <div class="workspace-panel mt-4">
             <h2>Review queue</h2>
             <div class="queue-item">
-              <span>Pending</span>
-              <strong>0</strong>
+              <span>Total scans</span>
+              <strong>{{ scan_counts.total }}</strong>
             </div>
             <div class="queue-item">
-              <span>High risk</span>
-              <strong>0</strong>
+              <span>Phishing</span>
+              <strong>{{ scan_counts.phishing }}</strong>
+            </div>
+            <div class="queue-item">
+              <span>Suspicious</span>
+              <strong>{{ scan_counts.suspicious }}</strong>
             </div>
             <div class="queue-item">
               <span>Safe</span>
-              <strong>0</strong>
+              <strong>{{ scan_counts.safe }}</strong>
             </div>
           </div>
         </div>

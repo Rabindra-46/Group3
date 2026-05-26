@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Scan History - Phishing Detector{% endblock %}
+
+{% block content %}
+  <section class="dashboard-page">
+    <div class="container">
+      <div class="dashboard-header">
+        <div>
+          <p class="eyebrow">Reports</p>
+          <h1>My scan history</h1>
+          <p class="muted-text">Saved email analysis results for your account.</p>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Analyze new email</a>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-3">
+          <aside class="sidebar-panel">
+            <h2>Menu</h2>
+            <a class="sidebar-link" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+            <a class="sidebar-link" href="{{ url_for('main.analyze') }}">Analyze email</a>
+            <a class="sidebar-link active" href="{{ url_for('main.scan_history') }}">My reports</a>
+            {% if user_role == 'admin' %}
+              <hr>
+              <a class="sidebar-link" href="{{ url_for('main.admin_dashboard') }}">Admin dashboard</a>
+            {% endif %}
+          </aside>
+        </div>
+
+        <div class="col-lg-9">
+          <div class="workspace-panel">
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Sender</th>
+                    <th>Result</th>
+                    <th>Score</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for scan in scans %}
+                    <tr>
+                      <td>{{ scan.subject }}</td>
+                      <td>{{ scan.sender }}</td>
+                      <td><span class="risk-pill {{ scan.result_color }}">{{ scan.result_label }}</span></td>
+                      <td>{{ scan.risk_score }}/100</td>
+                      <td>{{ scan.created_at }}</td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="5">No scans saved yet.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

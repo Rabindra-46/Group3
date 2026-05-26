@@ -56,4 +56,24 @@ def init_db():
         db.execute('ALTER TABLE users ADD COLUMN created_at TIMESTAMP')
         db.execute("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL")
 
+    db.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS email_scans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            sender TEXT,
+            subject TEXT,
+            body_preview TEXT,
+            urls TEXT,
+            attachments TEXT,
+            risk_score INTEGER NOT NULL,
+            result_label TEXT NOT NULL,
+            result_color TEXT NOT NULL,
+            reasons TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+        '''
+    )
+
     db.commit()
