@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - Phishing Detector{% endblock %}
+
+{% block content %}
+  <section class="dashboard-page">
+    <div class="container">
+      <div class="dashboard-header">
+        <div>
+          <p class="eyebrow">Admin dashboard</p>
+          <h1>Security control panel</h1>
+          <p class="muted-text">Signed in as <strong>{{ user_email }}</strong> | Role: <strong>{{ user_role|title }}</strong></p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">User dashboard</a>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-3">
+          <aside class="sidebar-panel">
+            <h2>Admin menu</h2>
+            <a class="sidebar-link" href="{{ url_for('main.dashboard') }}">Scan email</a>
+            <a class="sidebar-link active" href="{{ url_for('main.admin_dashboard') }}">Admin dashboard</a>
+            <a class="sidebar-link" href="#">User management</a>
+            <a class="sidebar-link" href="#">System settings</a>
+          </aside>
+        </div>
+
+        <div class="col-lg-9">
+          <div class="workspace-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Registered users</h2>
+                <p>Simple RBAC view showing each account and role.</p>
+              </div>
+              <span class="status-pill">Admin only</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table align-middle">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>2FA</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in users %}
+                    <tr>
+                      <td>{{ user.email }}</td>
+                      <td><span class="role-badge">{{ user.role|title }}</span></td>
+                      <td>{{ 'Enabled' if user.is_2fa_enabled else 'Disabled' }}</td>
+                      <td>{{ user.created_at or 'Not recorded' }}</td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="4">No users found.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

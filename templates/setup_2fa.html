@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Set Up 2FA - Phishing Detector{% endblock %}
+
+{% block content %}
+  <section class="auth-page">
+    <div class="auth-card">
+      <div class="auth-side">
+        <p class="eyebrow">Two-factor setup</p>
+        <h1>Secure your account</h1>
+        <p>Scan the QR code with Google Authenticator, Microsoft Authenticator, Authy, or another TOTP app. The app will create a new code every 30 seconds.</p>
+      </div>
+      <div class="auth-form">
+        <h2>Set up 2FA</h2>
+        <div class="qr-panel">
+          <img src="{{ qr_code }}" alt="Two-factor authentication QR code">
+        </div>
+        <p class="form-note">Manual setup key:</p>
+        <code class="secret-key">{{ secret }}</code>
+        <form method="post" class="mt-4">
+          <div class="mb-3">
+            <label for="otp_code" class="form-label">Authentication code</label>
+            <input type="text" class="form-control" id="otp_code" name="otp_code" inputmode="numeric" autocomplete="one-time-code" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Verify and continue</button>
+        </form>
+        <p class="form-note">If the code changes before you submit, enter the newest code from your app.</p>
+      </div>
+    </div>
+  </section>
+{% endblock %}

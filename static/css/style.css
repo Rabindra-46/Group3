@@ -296,6 +296,43 @@ body {
   color: var(--muted);
 }
 
+.qr-panel {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.qr-panel img {
+  width: min(220px, 100%);
+  height: auto;
+}
+
+.secret-key {
+  display: block;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: #f3f6fb;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  padding: 12px;
+}
+
+.help-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+  margin-top: 18px;
+  padding: 14px;
+}
+
+.help-panel p {
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
 .alert {
   border-radius: 8px;
 }
@@ -318,6 +355,45 @@ body {
 
 .workspace-panel {
   padding: 24px;
+}
+
+.sidebar-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 18px;
+  box-shadow: 0 18px 45px rgba(16, 35, 63, 0.08);
+}
+
+.sidebar-panel h2 {
+  margin-bottom: 14px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.sidebar-link {
+  display: block;
+  border-radius: 8px;
+  color: var(--ink);
+  font-weight: 700;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+  background: #eaf4ff;
+  color: var(--primary);
+}
+
+.role-badge {
+  display: inline-block;
+  border-radius: 999px;
+  background: #eaf4ff;
+  color: var(--primary-dark);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 5px 10px;
 }
 
 .panel-heading {

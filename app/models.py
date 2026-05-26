@@ -1,6 +1,9 @@
 from werkzeug.security import check_password_hash, generate_password_hash
 from .database import get_db
 
+ROLE_ADMIN = 'admin'
+ROLE_USER = 'user'
+
 
 def find_user_by_email(email):
     db = get_db()
@@ -8,7 +11,20 @@ def find_user_by_email(email):
     return row
 
 
-def create_user(email, password, role='user'):
+def find_user_by_id(user_id):
+    db = get_db()
+    row = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    return row
+
+
+def list_users():
+    db = get_db()
+    return db.execute(
+        'SELECT id, email, role, is_2fa_enabled, created_at FROM users ORDER BY created_at DESC'
+    ).fetchall()
+
+
+def create_user(email, password, role=ROLE_USER):
     hashed_password = generate_password_hash(password)
     db = get_db()
 
@@ -37,7 +53,19 @@ def get_password_hash(user):
     return user['password']
 
 
-# Future RBAC and 2FA support can be added here:
-# - role checks (admin, analyst, user)
-# - multi-factor authentication state
-# - session permissions and user claims
+def save_2fa_secret(user_id, secret):
+    db = get_db()
+    db.execute(
+        'UPDATE users SET two_factor_secret = ? WHERE id = ?',
+        (secret, user_id),
+    )
+    db.commit()
+
+
+def enable_2fa(user_id):
+    db = get_db()
+    db.execute(
+        'UPDATE users SET is_2fa_enabled = 1 WHERE id = ?',
+        (user_id,),
+    )
+    db.commit()

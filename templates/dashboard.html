@@ -9,13 +9,28 @@
         <div>
           <p class="eyebrow">Analyst dashboard</p>
           <h1>Email risk review</h1>
-          <p class="muted-text">Signed in as <strong>{{ user_email }}</strong> · Role: <strong>{{ user_role }}</strong></p>
+          <p class="muted-text">Signed in as <strong>{{ user_email }}</strong> | Role: <strong>{{ user_role|title }}</strong></p>
         </div>
         <a class="btn btn-outline-secondary" href="{{ url_for('main.logout') }}">Logout</a>
       </div>
 
       <div class="row g-4">
-        <div class="col-lg-8">
+        <div class="col-lg-3">
+          <aside class="sidebar-panel">
+            <h2>Menu</h2>
+            <a class="sidebar-link active" href="{{ url_for('main.dashboard') }}">Scan email</a>
+            <a class="sidebar-link" href="#">My reports</a>
+            <a class="sidebar-link" href="#">Account</a>
+            {% if user_role == 'admin' %}
+              <hr>
+              <a class="sidebar-link" href="{{ url_for('main.admin_dashboard') }}">Admin dashboard</a>
+              <a class="sidebar-link" href="#">User management</a>
+              <a class="sidebar-link" href="#">System settings</a>
+            {% endif %}
+          </aside>
+        </div>
+
+        <div class="col-lg-6">
           <div class="workspace-panel">
             <div class="panel-heading">
               <div>
@@ -38,7 +53,7 @@
           </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-3">
           <div class="workspace-panel">
             <h2>Risk signals</h2>
             <div class="risk-list">

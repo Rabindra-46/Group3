@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify 2FA - Phishing Detector{% endblock %}
+
+{% block content %}
+  <section class="auth-page">
+    <div class="auth-card">
+      <div class="auth-side">
+        <p class="eyebrow">Second step</p>
+        <h1>Enter your code</h1>
+        <p>Use the current six-digit code from your authenticator app. A new code appears every 30 seconds.</p>
+      </div>
+      <div class="auth-form">
+        <h2>Verify 2FA</h2>
+        <form method="post">
+          <div class="mb-3">
+            <label for="otp_code" class="form-label">Authentication code</label>
+            <input type="text" class="form-control" id="otp_code" name="otp_code" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Verify code</button>
+        </form>
+        <div class="help-panel">
+          <strong>Code expired?</strong>
+          <p>There is no resend button for authenticator apps. Wait for the next code in the app, then enter the new code here.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
