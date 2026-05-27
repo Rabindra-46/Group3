@@ -26,8 +26,38 @@
     <div class="report-toolbar">
       <div>
         <h3 class="report-toolbar-title">Saved reports</h3>
-        <p class="report-toolbar-subtitle">{{ scans|length }} report(s) available for review and export.</p>
+        <p class="report-toolbar-subtitle">{{ scans|length }} of {{ total_scans }} report(s) shown.</p>
       </div>
+    </div>
+    <div class="report-filter-bar">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-lg-5">
+          <label class="form-label" for="search">Search sender or subject</label>
+          <input class="form-control" id="search" name="search" type="search" value="{{ filters.search }}" placeholder="Example: paypal, invoice, sender@email.com">
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label class="form-label" for="risk">Risk level</label>
+          <select class="form-select" id="risk" name="risk">
+            <option value="">All risk levels</option>
+            <option value="Safe" {% if filters.risk == 'Safe' %}selected{% endif %}>Safe</option>
+            <option value="Suspicious" {% if filters.risk == 'Suspicious' %}selected{% endif %}>Suspicious</option>
+            <option value="Phishing" {% if filters.risk == 'Phishing' %}selected{% endif %}>Phishing</option>
+          </select>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label class="form-label" for="quarantined">Quarantine</label>
+          <select class="form-select" id="quarantined" name="quarantined">
+            <option value="">All reports</option>
+            <option value="1" {% if filters.quarantined == '1' %}selected{% endif %}>Quarantined only</option>
+          </select>
+        </div>
+        <div class="col-12 col-lg-2">
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary w-100" type="submit">Filter</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.scan_history') }}">Reset</a>
+          </div>
+        </div>
+      </form>
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
@@ -87,8 +117,8 @@
       {% if not scans %}
         <div class="empty-state">
           <div>
-            <strong>No reports yet</strong>
-            <p class="text-secondary mb-3">Analyze an email to create your first downloadable report.</p>
+            <strong>No matching reports</strong>
+            <p class="text-secondary mb-3">Change the search or filters, or analyze a new email.</p>
             <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Analyze Email</a>
           </div>
         </div>

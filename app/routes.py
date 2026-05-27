@@ -220,6 +220,43 @@ def get_percent(value, total):
     return round((value / total) * 100)
 
 
+def get_report_filters():
+    return {
+        'search': request.args.get('search', '').strip(),
+        'risk': request.args.get('risk', '').strip(),
+        'quarantined': request.args.get('quarantined', '').strip(),
+    }
+
+
+def filter_scans(scans, filters):
+    filtered_scans = scans
+    search = filters['search'].lower()
+    risk = filters['risk']
+    quarantined_only = filters['quarantined'] == '1'
+
+    if search:
+        filtered_scans = [
+            scan for scan in filtered_scans
+            if search in (scan.get('sender') or '').lower()
+            or search in (scan.get('subject') or '').lower()
+            or search in (scan.get('user_email') or '').lower()
+        ]
+
+    if risk in ['Safe', 'Suspicious', 'Phishing']:
+        filtered_scans = [
+            scan for scan in filtered_scans
+            if scan.get('result_label') == risk
+        ]
+
+    if quarantined_only:
+        filtered_scans = [
+            scan for scan in filtered_scans
+            if scan.get('is_quarantined')
+        ]
+
+    return filtered_scans
+
+
 @main_blueprint.route('/')
 def home():
     return render_template('index.html')
@@ -439,9 +476,13 @@ def analyze():
 @login_required
 def scan_history():
     auth = get_auth(AUTH_CONTEXT_USER)
+    filters = get_report_filters()
+    all_scans = list_email_scans(auth['user_id'])
     return render_template(
         'scan_history.html',
-        scans=list_email_scans(auth['user_id']),
+        scans=filter_scans(all_scans, filters),
+        total_scans=len(all_scans),
+        filters=filters,
         user_role=auth['user_role'],
     )
 
@@ -600,11 +641,15 @@ def admin_dashboard():
 @role_required(ROLE_ADMIN)
 def admin_reports():
     auth = get_auth(AUTH_CONTEXT_ADMIN)
+    filters = get_report_filters()
+    all_scans = list_all_email_scans(limit=None)
     return render_template(
         'admin_reports.html',
         user_email=auth['user_email'],
         user_role=auth['user_role'],
-        scans=list_all_email_scans(limit=None),
+        scans=filter_scans(all_scans, filters),
+        total_scans=len(all_scans),
+        filters=filters,
     )
 
 
