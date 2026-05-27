@@ -58,6 +58,26 @@
   </div>
 
   <div class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3 class="card-title mb-0">My scan calendar</h3>
+        </div>
+        <div class="card-body">
+          {% if scan_calendar.has_data %}
+            <div class="calendar-heatmap" id="userScanCalendar"
+              data-cells='{{ scan_calendar.heatmap.cells|tojson }}'
+              data-months='{{ scan_calendar.heatmap.months|tojson }}'
+              data-max-count="{{ scan_calendar.heatmap.max_count }}"></div>
+          {% else %}
+            <div class="empty-state compact"><div><strong>No scan calendar yet</strong><p class="text-secondary mb-0">Your daily, weekly, and monthly scan counts will appear after you analyze emails.</p></div></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
     <div class="col-lg-8">
       <div class="card report-card h-100">
         <div class="report-toolbar">

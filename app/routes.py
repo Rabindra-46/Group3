@@ -1,7 +1,9 @@
 import base64
-from datetime import datetime
+from collections import Counter
+from datetime import datetime, timedelta
 from io import BytesIO
 from functools import wraps
+from urllib.parse import urlparse
 
 import pyotp
 import qrcode
@@ -211,6 +213,144 @@ def build_admin_summary(scans, users):
         'suspicious_percent': get_percent(suspicious, total_scans),
         'safe_percent': get_percent(safe, total_scans),
         'quarantined_percent': get_percent(quarantined, total_scans),
+    }
+
+
+def build_admin_analytics(scans):
+    domain_counter = Counter()
+
+    for scan in scans:
+        for url in scan.get('urls') or []:
+            domain = urlparse(url).hostname or ''
+            domain = domain.lower().removeprefix('www.')
+            if domain:
+                domain_counter[domain] += 1
+
+    return {
+        'top_domains': domain_counter.most_common(5),
+    }
+
+
+def parse_scan_datetime(value):
+    if isinstance(value, datetime):
+        return value
+    if not value:
+        return None
+
+    text = str(value).strip()
+    for date_format in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d']:
+        try:
+            return datetime.strptime(text[:19 if 'H' in date_format else 10], date_format)
+        except ValueError:
+            continue
+    return None
+
+
+def build_scan_calendar(scans):
+    scan_dates = [
+        parse_scan_datetime(scan.get('created_at'))
+        for scan in scans
+    ]
+    scan_dates = [date for date in scan_dates if date]
+    reference_date = max(scan_dates).date() if scan_dates else datetime.utcnow().date()
+
+    day_labels = [
+        (reference_date - timedelta(days=offset)).strftime('%d %b')
+        for offset in range(6, -1, -1)
+    ]
+    day_keys = [
+        (reference_date - timedelta(days=offset)).isoformat()
+        for offset in range(6, -1, -1)
+    ]
+
+    week_starts = [
+        reference_date - timedelta(days=reference_date.weekday() + (offset * 7))
+        for offset in range(7, -1, -1)
+    ]
+    week_labels = [start.strftime('%d %b') for start in week_starts]
+    week_keys = [start.isoformat() for start in week_starts]
+
+    month_starts = []
+    month_cursor = reference_date.replace(day=1)
+    for offset in range(5, -1, -1):
+        year = month_cursor.year
+        month = month_cursor.month - offset
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_starts.append(datetime(year, month, 1).date())
+    month_labels = [start.strftime('%b %Y') for start in month_starts]
+    month_keys = [start.strftime('%Y-%m') for start in month_starts]
+
+    day_counts = Counter()
+    week_counts = Counter()
+    month_counts = Counter()
+    for scan_date in scan_dates:
+        date_value = scan_date.date()
+        day_counts[date_value.isoformat()] += 1
+        week_start = date_value - timedelta(days=date_value.weekday())
+        week_counts[week_start.isoformat()] += 1
+        month_counts[date_value.strftime('%Y-%m')] += 1
+
+    return {
+        'day': {
+            'labels': day_labels,
+            'data': [day_counts.get(key, 0) for key in day_keys],
+        },
+        'week': {
+            'labels': week_labels,
+            'data': [week_counts.get(key, 0) for key in week_keys],
+        },
+        'month': {
+            'labels': month_labels,
+            'data': [month_counts.get(key, 0) for key in month_keys],
+        },
+        'heatmap': build_calendar_heatmap(day_counts, reference_date),
+        'has_data': bool(scan_dates),
+    }
+
+
+def build_calendar_heatmap(day_counts, reference_date):
+    days_to_show = 84
+    start_date = reference_date - timedelta(days=days_to_show - 1)
+    start_date = start_date - timedelta(days=start_date.weekday())
+    end_date = reference_date
+    max_count = max(day_counts.values(), default=0)
+    cells = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        count = day_counts.get(current_date.isoformat(), 0)
+        if max_count == 0:
+            level = 0
+        else:
+            level = max(1, min(4, round((count / max_count) * 4)))
+
+        cells.append({
+            'date': current_date.isoformat(),
+            'label': current_date.strftime('%d %b %Y'),
+            'weekday': current_date.weekday(),
+            'week': len(cells) // 7,
+            'count': count,
+            'level': level,
+        })
+        current_date += timedelta(days=1)
+
+    month_labels = []
+    seen_months = set()
+    for cell in cells:
+        month_key = cell['date'][:7]
+        if month_key not in seen_months:
+            seen_months.add(month_key)
+            month_labels.append({
+                'label': datetime.strptime(month_key, '%Y-%m').strftime('%b'),
+                'week': cell['week'],
+            })
+
+    return {
+        'cells': cells,
+        'months': month_labels,
+        'max_count': max_count,
     }
 
 
@@ -426,12 +566,14 @@ def handle_verify_2fa(context):
 @login_required
 def dashboard():
     auth = get_auth(AUTH_CONTEXT_USER)
+    scans = list_email_scans(auth['user_id'])
     return render_template(
         'user_dashboard.html',
         user_email=auth['user_email'],
         user_role=auth['user_role'],
-        recent_scans=list_email_scans(auth['user_id'])[:3],
+        recent_scans=scans[:3],
         scan_counts=get_scan_counts(auth['user_id']),
+        scan_calendar=build_scan_calendar(scans),
     )
 
 
@@ -629,6 +771,8 @@ def admin_dashboard():
         user_email=auth['user_email'],
         user_role=auth['user_role'],
         summary=build_admin_summary(scans, users),
+        analytics=build_admin_analytics(scans),
+        scan_calendar=build_scan_calendar(scans),
         recent_scans=scans[:5],
         high_risk_scans=[
             scan for scan in scans

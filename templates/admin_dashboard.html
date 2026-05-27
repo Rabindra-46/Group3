@@ -67,22 +67,71 @@
   </div>
 
   <div class="row g-3 mt-1">
-    <div class="col-lg-4">
+    <div class="col-lg-6">
       <div class="card chart-card h-100">
         <div class="card-header">
-          <h3 class="card-title mb-0">Risk distribution</h3>
+          <h3 class="card-title mb-0">Scans by result type</h3>
         </div>
         <div class="card-body">
-          <canvas class="soc-chart" id="adminRiskChart"
-            data-safe="{{ summary.safe }}"
-            data-suspicious="{{ summary.suspicious }}"
-            data-phishing="{{ summary.phishing }}"
-            data-quarantined="{{ summary.quarantined }}"></canvas>
+          {% if summary.total_scans %}
+            <canvas class="soc-chart" id="adminRiskChart"
+              data-safe="{{ summary.safe }}"
+              data-suspicious="{{ summary.suspicious }}"
+              data-phishing="{{ summary.phishing }}"
+              data-quarantined="{{ summary.quarantined }}"></canvas>
+          {% else %}
+            <div class="empty-state compact"><div><strong>No scan data yet</strong><p class="text-secondary mb-0">Risk statistics will appear after users analyze emails.</p></div></div>
+          {% endif %}
         </div>
       </div>
     </div>
 
-    <div class="col-lg-8">
+    <div class="col-lg-6">
+      <div class="card chart-card h-100">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Scan calendar</h3>
+        </div>
+        <div class="card-body">
+          {% if scan_calendar.has_data %}
+            <div class="calendar-heatmap" id="adminScanCalendar"
+              data-cells='{{ scan_calendar.heatmap.cells|tojson }}'
+              data-months='{{ scan_calendar.heatmap.months|tojson }}'
+              data-max-count="{{ scan_calendar.heatmap.max_count }}"></div>
+          {% else %}
+            <div class="empty-state compact"><div><strong>No calendar data yet</strong><p class="text-secondary mb-0">Daily, weekly, and monthly scan counts will appear after users analyze emails.</p></div></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-12">
+      <div class="card analytics-card h-100">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Top suspicious domains</h3>
+        </div>
+        <div class="card-body">
+          {% if analytics.top_domains %}
+            <div class="rank-list">
+              {% for domain, count in analytics.top_domains %}
+                <div class="rank-item">
+                  <span>{{ loop.index }}</span>
+                  <strong>{{ domain }}</strong>
+                  <em>{{ count }} hit{{ '' if count == 1 else 's' }}</em>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty-state compact"><div><strong>No suspicious domains yet</strong><p class="text-secondary mb-0">Detected URLs will be summarized here.</p></div></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-12">
       <div class="card report-card h-100">
         <div class="report-toolbar">
           <div>
