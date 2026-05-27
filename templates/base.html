@@ -47,7 +47,7 @@
                 {% if is_admin_area %}
                   <li class="nav-header">ADMIN</li>
                   <li class="nav-item">
-                    <a href="{{ url_for('main.admin_dashboard') }}" class="nav-link {% if request.endpoint in ['main.admin_dashboard', 'main.admin_scan_detail'] %}active{% endif %}">
+                    <a href="{{ url_for('main.admin_dashboard') }}" class="nav-link {% if request.endpoint == 'main.admin_dashboard' %}active{% endif %}">
                       <span class="nav-icon">D</span>
                       <p>Dashboard</p>
                     </a>
@@ -59,7 +59,7 @@
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a href="{{ url_for('main.admin_dashboard') }}#reports" class="nav-link">
+                    <a href="{{ url_for('main.admin_reports') }}" class="nav-link {% if request.endpoint in ['main.admin_reports', 'main.admin_scan_detail'] %}active{% endif %}">
                       <span class="nav-icon">R</span>
                       <p>Reports</p>
                     </a>

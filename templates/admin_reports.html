@@ -1,19 +1,19 @@
 {% extends 'base.html' %}
 
-{% block title %}Reports - Phishing Detector{% endblock %}
-{% block page_heading %}Reports{% endblock %}
+{% block title %}Admin Reports - Phishing Detector{% endblock %}
+{% block page_heading %}Admin Reports{% endblock %}
 
 {% block content_header %}
   <div class="row page-title-row">
-    <div class="col-sm-7">
-      <span class="page-kicker">Saved analysis</span>
-      <h1 class="m-0">My reports</h1>
-      <p class="text-secondary mb-0">Saved email analysis results for your account.</p>
+    <div class="col-sm-8">
+      <span class="page-kicker">Report center</span>
+      <h1 class="m-0">All email scans</h1>
+      <p class="text-secondary mb-0">Review, export, quarantine, release, or delete scan reports across all users.</p>
     </div>
-    <div class="col-sm-5 text-sm-end mt-3 mt-sm-0">
-      <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Analyze new email</a>
+    <div class="col-sm-4 text-sm-end mt-3 mt-sm-0">
       {% if scans %}
-        <form class="d-inline" method="post" action="{{ url_for('main.delete_all_scans') }}" onsubmit="return confirm('Delete all of your scan reports?');">
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_export_all_scans') }}">Export all CSV</a>
+        <form class="d-inline" method="post" action="{{ url_for('main.admin_delete_all_scans') }}" onsubmit="return confirm('Admin action: delete every scan report for all users?');">
           <button class="btn btn-outline-danger" type="submit">Delete all</button>
         </form>
       {% endif %}
@@ -22,18 +22,22 @@
 {% endblock %}
 
 {% block content %}
-  <div class="card report-card">
+  <div class="card report-card" id="reports">
     <div class="report-toolbar">
       <div>
-        <h3 class="report-toolbar-title">Saved reports</h3>
-        <p class="report-toolbar-subtitle">{{ scans|length }} report(s) available for review and export.</p>
+        <h3 class="report-toolbar-title">Reports</h3>
+        <p class="report-toolbar-subtitle">{{ scans|length }} scan report(s) across all users.</p>
       </div>
+      {% if scans %}
+        <a class="action-btn" href="{{ url_for('main.admin_export_all_scans') }}"><span class="action-dot"><span>C</span></span>Export all CSV</a>
+      {% endif %}
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table report-table align-middle mb-0">
           <thead>
             <tr>
+              <th>User</th>
               <th>Subject</th>
               <th>Result</th>
               <th>Quarantine</th>
@@ -45,6 +49,12 @@
           <tbody>
             {% for scan in scans %}
               <tr>
+                <td>
+                  <div class="report-user">
+                    <strong>{{ scan.user_email }}</strong>
+                    <span>Report #{{ scan.id }}</span>
+                  </div>
+                </td>
                 <td>
                   <div class="report-subject">
                     <strong>{{ scan.subject }}</strong>
@@ -63,18 +73,18 @@
                 <td>{{ scan.created_at }}</td>
                 <td>
                   <div class="action-group">
-                    <a class="action-btn primary" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}"><span class="action-dot"><span>V</span></span>View</a>
-                    <a class="action-btn" href="{{ url_for('main.export_scan', scan_id=scan.id, file_type='csv') }}"><span class="action-dot"><span>C</span></span>CSV</a>
+                    <a class="action-btn primary" href="{{ url_for('main.admin_scan_detail', scan_id=scan.id) }}"><span class="action-dot"><span>V</span></span>View</a>
+                    <a class="action-btn" href="{{ url_for('main.admin_export_scan', scan_id=scan.id, file_type='csv') }}"><span class="action-dot"><span>C</span></span>CSV</a>
                     {% if scan.is_quarantined %}
-                      <form method="post" action="{{ url_for('main.release_scan', scan_id=scan.id) }}" onsubmit="return confirm('Release this report from quarantine?');">
+                      <form method="post" action="{{ url_for('main.admin_release_scan', scan_id=scan.id) }}" onsubmit="return confirm('Release this report from quarantine?');">
                         <button class="action-btn success" type="submit"><span class="action-dot"><span>R</span></span>Release</button>
                       </form>
                     {% else %}
-                      <form method="post" action="{{ url_for('main.quarantine_scan', scan_id=scan.id) }}" onsubmit="return confirm('Move this report to quarantine?');">
+                      <form method="post" action="{{ url_for('main.admin_quarantine_scan', scan_id=scan.id) }}" onsubmit="return confirm('Move this report to quarantine?');">
                         <button class="action-btn warning" type="submit"><span class="action-dot"><span>Q</span></span>Hold</button>
                       </form>
                     {% endif %}
-                    <form method="post" action="{{ url_for('main.delete_scan', scan_id=scan.id) }}" onsubmit="return confirm('Delete this scan report?');">
+                    <form method="post" action="{{ url_for('main.admin_delete_scan', scan_id=scan.id) }}" onsubmit="return confirm('Admin action: delete this scan report?');">
                       <button class="action-btn danger" type="submit"><span class="action-dot"><span>D</span></span>Delete</button>
                     </form>
                   </div>
@@ -88,8 +98,7 @@
         <div class="empty-state">
           <div>
             <strong>No reports yet</strong>
-            <p class="text-secondary mb-3">Analyze an email to create your first downloadable report.</p>
-            <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Analyze Email</a>
+            <p class="text-secondary mb-0">Reports from all users will appear here after email analysis.</p>
           </div>
         </div>
       {% endif %}

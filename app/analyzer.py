@@ -5,6 +5,8 @@ from email import policy
 from email.parser import Parser
 from email.utils import parseaddr
 from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+from .indicators import get_malicious_indicators
 from .ml_classifier import predict_phishing_probability
 
 URGENCY_WORDS = [
@@ -87,18 +89,18 @@ def analyze_email(raw_email):
     return_path = parsed.get('Return-Path', '')
     authentication_results = parsed.get('Authentication-Results', '')
     body = extract_body(parsed, raw_email)
-    urls = extract_urls(raw_email)
+    urls = extract_urls(raw_email, parsed)
     attachments = extract_attachments(parsed, raw_email)
+    indicators = get_malicious_indicators()
 
     score = 0
     reasons = []
     safe_signals = []
     sender_domain = get_email_domain(sender)
 
-    score += detect_keywords(body, subject, URGENCY_WORDS, 15, 'Urgency wording found', reasons)
-    score += detect_keywords(body, subject, FINANCIAL_WORDS, 10, 'Financial wording found', reasons)
-    score += detect_suspicious_urls(urls, sender_domain, reasons)
-    score += detect_suspicious_attachments(attachments, reasons)
+    score += detect_keywords(body, subject, indicators['keyword'], 10, 'Phishing keyword found', reasons)
+    score += detect_suspicious_urls(urls, sender_domain, indicators['domain'], reasons)
+    score += detect_suspicious_attachments(attachments, indicators['extension'], reasons)
     score += detect_header_mismatches(sender, reply_to, return_path, reasons)
     score += detect_spoofed_sender(sender, reasons)
     score += detect_authentication_failures(authentication_results, reasons)
@@ -152,19 +154,51 @@ def extract_body(parsed, raw_email):
 
 
 def strip_html(html_text):
-    text = re.sub(r'<br\s*/?>', '\n', html_text, flags=re.IGNORECASE)
-    text = re.sub(r'</div>|</p>|</li>', '\n', text, flags=re.IGNORECASE)
-    text = re.sub(r'<[^>]+>', '', text)
+    soup = BeautifulSoup(html_text, 'html.parser')
+    text = soup.get_text(separator='\n')
     text = unescape(text)
     return re.sub(r'\n\s*\n+', '\n\n', text).strip()
 
 
-def extract_urls(text):
+def extract_urls(text, parsed=None):
     urls = []
+    if parsed is not None:
+        for html_text in extract_html_parts(parsed):
+            for url in extract_html_urls(html_text):
+                if url not in urls:
+                    urls.append(url)
+
     for url in URL_PATTERN.findall(text):
         cleaned_url = url.rstrip('.,);]')
         if cleaned_url not in urls:
             urls.append(cleaned_url)
+    return urls
+
+
+def extract_html_parts(parsed):
+    if parsed.is_multipart():
+        return [
+            part.get_content()
+            for part in parsed.walk()
+            if part.get_content_type() == 'text/html' and not part.get_filename()
+        ]
+
+    if parsed.get_content_type() == 'text/html':
+        return [parsed.get_content()]
+
+    return []
+
+
+def extract_html_urls(html_text):
+    soup = BeautifulSoup(html_text, 'html.parser')
+    urls = []
+    for tag in soup.find_all(['a', 'area', 'form', 'img', 'script', 'link']):
+        for attribute in ['href', 'src', 'action']:
+            value = tag.get(attribute)
+            if value and URL_PATTERN.match(value):
+                cleaned_url = value.rstrip('.,);]')
+                if cleaned_url not in urls:
+                    urls.append(cleaned_url)
     return urls
 
 
@@ -184,7 +218,10 @@ def extract_attachments(parsed, raw_email):
 
 def detect_keywords(body, subject, keywords, points, reason_prefix, reasons):
     text = f'{subject}\n{body}'.lower()
-    matched = [word for word in keywords if word in text]
+    matched = [
+        word for word in keywords
+        if re.search(rf'\b{re.escape(word.lower())}\b', text, re.IGNORECASE)
+    ]
     if not matched:
         return 0
 
@@ -192,8 +229,9 @@ def detect_keywords(body, subject, keywords, points, reason_prefix, reasons):
     return min(len(matched) * points, 30)
 
 
-def detect_suspicious_urls(urls, sender_domain, reasons):
+def detect_suspicious_urls(urls, sender_domain, suspicious_domains, reasons):
     score = 0
+    suspicious_domain_set = {domain.lower().removeprefix('www.') for domain in suspicious_domains}
     for url in urls:
         parsed_url = urlparse(url)
         domain = parsed_url.hostname or ''
@@ -207,9 +245,9 @@ def detect_suspicious_urls(urls, sender_domain, reasons):
             score += 25
             reasons.append(f'URL uses an IP address instead of a domain: {url}')
 
-        if clean_domain in SHORTENED_DOMAINS:
+        if clean_domain in suspicious_domain_set:
             score += 20
-            reasons.append(f'URL uses a shortened link service: {url}')
+            reasons.append(f'URL matches malicious indicator database: {clean_domain}')
 
         if is_unusual_domain(clean_domain):
             score += 15
@@ -222,13 +260,17 @@ def detect_suspicious_urls(urls, sender_domain, reasons):
     return min(score, 55)
 
 
-def detect_suspicious_attachments(attachments, reasons):
+def detect_suspicious_attachments(attachments, dangerous_extensions, reasons):
     score = 0
+    extension_patterns = [
+        re.compile(rf'{re.escape(extension.lower())}$', re.IGNORECASE)
+        for extension in dangerous_extensions
+    ]
     for attachment in attachments:
         lower_name = attachment.lower()
-        if any(lower_name.endswith(extension) for extension in SUSPICIOUS_EXTENSIONS):
+        if any(pattern.search(lower_name) for pattern in extension_patterns):
             score += 25
-            reasons.append(f'Suspicious attachment type found: {attachment}')
+            reasons.append(f'Dangerous attachment indicator found: {attachment}')
 
     return min(score, 40)
 
@@ -258,7 +300,7 @@ def detect_spoofed_sender(sender, reasons):
 
     display_text = display_name.lower()
     for brand in KNOWN_BRANDS:
-        if brand in display_text and brand not in sender_domain:
+        if re.search(rf'\b{re.escape(brand)}\b', display_text, re.IGNORECASE) and brand not in sender_domain:
             reasons.append(
                 f'Sender name mentions "{brand}" but the email domain is {sender_domain}.'
             )

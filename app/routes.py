@@ -190,6 +190,36 @@ def export_scans_response(scans):
     )
 
 
+def build_admin_summary(scans, users):
+    total_scans = len(scans)
+    phishing = sum(1 for scan in scans if scan['result_label'] == 'Phishing')
+    suspicious = sum(1 for scan in scans if scan['result_label'] == 'Suspicious')
+    safe = sum(1 for scan in scans if scan['result_label'] == 'Safe')
+    quarantined = sum(1 for scan in scans if scan['is_quarantined'])
+    active_users = sum(1 for user in users if user['is_active'])
+
+    return {
+        'total_scans': total_scans,
+        'phishing': phishing,
+        'suspicious': suspicious,
+        'safe': safe,
+        'quarantined': quarantined,
+        'total_users': len(users),
+        'active_users': active_users,
+        'inactive_users': len(users) - active_users,
+        'phishing_percent': get_percent(phishing, total_scans),
+        'suspicious_percent': get_percent(suspicious, total_scans),
+        'safe_percent': get_percent(safe, total_scans),
+        'quarantined_percent': get_percent(quarantined, total_scans),
+    }
+
+
+def get_percent(value, total):
+    if not total:
+        return 0
+    return round((value / total) * 100)
+
+
 @main_blueprint.route('/')
 def home():
     return render_template('index.html')
@@ -480,7 +510,7 @@ def admin_quarantine_scan(scan_id):
         flash('Scan report moved to quarantine.', 'success')
     else:
         flash('Scan report not found.', 'warning')
-    return redirect(url_for('main.admin_dashboard'))
+    return redirect(url_for('main.admin_reports'))
 
 
 @main_blueprint.route('/admin/scans/<int:scan_id>/release', methods=['POST'])
@@ -551,11 +581,30 @@ def delete_all_scans():
 @role_required(ROLE_ADMIN)
 def admin_dashboard():
     auth = get_auth(AUTH_CONTEXT_ADMIN)
+    scans = list_all_email_scans(limit=None)
+    users = list_users()
     return render_template(
         'admin_dashboard.html',
         user_email=auth['user_email'],
         user_role=auth['user_role'],
-        scans=list_all_email_scans(),
+        summary=build_admin_summary(scans, users),
+        recent_scans=scans[:5],
+        high_risk_scans=[
+            scan for scan in scans
+            if scan['result_label'] in ['Phishing', 'Suspicious']
+        ][:5],
+    )
+
+
+@main_blueprint.route('/admin/reports')
+@role_required(ROLE_ADMIN)
+def admin_reports():
+    auth = get_auth(AUTH_CONTEXT_ADMIN)
+    return render_template(
+        'admin_reports.html',
+        user_email=auth['user_email'],
+        user_role=auth['user_role'],
+        scans=list_all_email_scans(limit=None),
     )
 
 
@@ -606,7 +655,7 @@ def admin_scan_detail(scan_id):
     scan = find_any_email_scan(scan_id)
     if scan is None:
         flash('Scan report not found.', 'warning')
-        return redirect(url_for('main.admin_dashboard'))
+        return redirect(url_for('main.admin_reports'))
 
     return render_template(
         'scan_detail.html',
@@ -626,7 +675,7 @@ def admin_export_scan(scan_id, file_type):
     scan = find_any_email_scan(scan_id)
     if scan is None:
         flash('Scan report not found.', 'warning')
-        return redirect(url_for('main.admin_dashboard'))
+        return redirect(url_for('main.admin_reports'))
 
     return export_scan_response(scan)
 
@@ -645,7 +694,7 @@ def admin_delete_scan(scan_id):
         flash('Scan report deleted by admin.', 'success')
     else:
         flash('Scan report not found.', 'warning')
-    return redirect(url_for('main.admin_dashboard'))
+    return redirect(url_for('main.admin_reports'))
 
 
 @main_blueprint.route('/admin/users/<int:user_id>/reset-2fa', methods=['POST'])
@@ -669,7 +718,7 @@ def admin_reset_user_2fa(user_id):
 def admin_delete_all_scans():
     deleted_count = delete_all_scans_admin()
     flash(f'Admin deleted {deleted_count} scan report(s).', 'success')
-    return redirect(url_for('main.admin_dashboard'))
+    return redirect(url_for('main.admin_reports'))
 
 
 @main_blueprint.route('/logout')

@@ -4,10 +4,14 @@
 {% block page_heading %}User Dashboard{% endblock %}
 
 {% block content_header %}
-  <div class="row">
-    <div class="col-sm-6">
+  <div class="row page-title-row">
+    <div class="col-sm-8">
+      <span class="page-kicker">Analyst workspace</span>
       <h1 class="m-0">Email risk review</h1>
       <p class="text-secondary mb-0">Signed in as {{ user_email }} | Role: {{ user_role|title }}</p>
+    </div>
+    <div class="col-sm-4 text-sm-end mt-3 mt-sm-0">
+      <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Analyze Email</a>
     </div>
   </div>
 {% endblock %}
@@ -15,38 +19,38 @@
 {% block content %}
   <div class="row g-3">
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="info-box">
-        <span class="info-box-icon text-bg-primary">T</span>
-        <div class="info-box-content">
-          <span class="info-box-text">Total scans</span>
-          <span class="info-box-number">{{ scan_counts.total }}</span>
+      <div class="card metric-card">
+        <div class="card-body">
+          <span class="metric-label">Total scans</span>
+          <span class="metric-number">{{ scan_counts.total }}</span>
+          <div class="metric-note">All saved reports</div>
         </div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="info-box">
-        <span class="info-box-icon text-bg-danger">P</span>
-        <div class="info-box-content">
-          <span class="info-box-text">Phishing</span>
-          <span class="info-box-number">{{ scan_counts.phishing }}</span>
+      <div class="card metric-card danger">
+        <div class="card-body">
+          <span class="metric-label">Phishing</span>
+          <span class="metric-number">{{ scan_counts.phishing }}</span>
+          <div class="metric-note">High-risk results</div>
         </div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="info-box">
-        <span class="info-box-icon text-bg-warning">S</span>
-        <div class="info-box-content">
-          <span class="info-box-text">Suspicious</span>
-          <span class="info-box-number">{{ scan_counts.suspicious }}</span>
+      <div class="card metric-card warning">
+        <div class="card-body">
+          <span class="metric-label">Suspicious</span>
+          <span class="metric-number">{{ scan_counts.suspicious }}</span>
+          <div class="metric-note">Needs review</div>
         </div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="info-box">
-        <span class="info-box-icon text-bg-warning">Q</span>
-        <div class="info-box-content">
-          <span class="info-box-text">Quarantined</span>
-          <span class="info-box-number">{{ scan_counts.quarantined }}</span>
+      <div class="card metric-card safe">
+        <div class="card-body">
+          <span class="metric-label">Quarantined</span>
+          <span class="metric-number">{{ scan_counts.quarantined }}</span>
+          <div class="metric-note">Held for action</div>
         </div>
       </div>
     </div>
@@ -79,14 +83,19 @@
                     <td>{{ scan.risk_score }}/100</td>
                     <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}">View</a></td>
                   </tr>
-                {% else %}
-                  <tr>
-                    <td colspan="5" class="text-secondary">No scans saved yet.</td>
-                  </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
+          {% if not recent_scans %}
+            <div class="empty-state">
+              <div>
+                <strong>No reports yet</strong>
+                <p class="text-secondary mb-3">Analyze your first suspicious email to build a review history.</p>
+                <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Start analysis</a>
+              </div>
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>

@@ -91,6 +91,22 @@ def init_db():
         '''
     )
 
+    db.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS malicious_indicators (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            indicator_type TEXT NOT NULL,
+            value TEXT NOT NULL,
+            description TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(indicator_type, value)
+        )
+        '''
+    )
+    from .indicators import seed_default_indicators
+    seed_default_indicators(db)
+
     scan_columns = {
         row['name'] for row in db.execute('PRAGMA table_info(email_scans)').fetchall()
     }

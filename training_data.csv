@@ -1,0 +1,11 @@
+text,label
+"urgent verify your account now or it will be suspended",phishing
+"your bank account has been locked click here to login",phishing
+"limited time refund available confirm your credit card",phishing
+"payment failed update your password immediately",phishing
+"security alert verify now using this link",phishing
+"team meeting tomorrow at 10am",safe
+"please review the attached project notes",safe
+"your invoice has been paid successfully",safe
+"weekly report is ready for review",safe
+"lunch schedule for friday",safe
