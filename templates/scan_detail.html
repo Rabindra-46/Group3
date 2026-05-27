@@ -48,6 +48,17 @@
         <div class="col-md-6"><div class="detail-box"><span>Subject</span><strong>{{ scan.subject }}</strong></div></div>
         <div class="col-md-6"><div class="detail-box"><span>Reply-To</span><strong>{{ scan.reply_to or 'Not recorded' }}</strong></div></div>
         <div class="col-md-6"><div class="detail-box"><span>Return-Path</span><strong>{{ scan.return_path or 'Not recorded' }}</strong></div></div>
+        <div class="col-md-6"><div class="detail-box"><span>Rule-based score</span><strong>{{ scan.rule_score }}/100</strong></div></div>
+        <div class="col-md-6">
+          <div class="detail-box">
+            <span>Machine learning</span>
+            {% if scan.ml_probability is not none %}
+              <strong>{{ scan.ml_probability }}% phishing probability | {{ scan.ml_label }}</strong>
+            {% else %}
+              <strong>Model not available</strong>
+            {% endif %}
+          </div>
+        </div>
         <div class="col-md-6">
           <div class="detail-box">
             <span>Quarantine status</span>

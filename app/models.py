@@ -123,6 +123,9 @@ def save_email_scan(user_id, result):
             risk_score,
             result_label,
             result_color,
+            rule_score,
+            ml_probability,
+            ml_label,
             reasons,
             safe_signals,
             confidence,
@@ -130,7 +133,7 @@ def save_email_scan(user_id, result):
             quarantine_reason,
             quarantined_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE NULL END)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE NULL END)
         ''',
         (
             user_id,
@@ -145,6 +148,9 @@ def save_email_scan(user_id, result):
             result['risk_score'],
             result['result_label'],
             result['result_color'],
+            result['rule_score'],
+            result['ml_probability'],
+            result['ml_label'],
             dumps_list(result['reasons']),
             dumps_list(result['safe_signals']),
             result['confidence'],
@@ -342,5 +348,8 @@ def format_scan(row):
     scan['reasons'] = loads_list(scan.get('reasons'))
     scan['safe_signals'] = loads_list(scan.get('safe_signals'))
     scan['confidence'] = scan.get('confidence') or 0
+    scan['rule_score'] = scan.get('rule_score') if scan.get('rule_score') is not None else scan.get('risk_score')
+    scan['ml_probability'] = scan.get('ml_probability')
+    scan['ml_label'] = scan.get('ml_label') or 'Model not available'
     scan['is_quarantined'] = bool(scan.get('is_quarantined'))
     return scan

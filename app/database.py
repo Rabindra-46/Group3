@@ -76,6 +76,9 @@ def init_db():
             risk_score INTEGER NOT NULL,
             result_label TEXT NOT NULL,
             result_color TEXT NOT NULL,
+            rule_score INTEGER,
+            ml_probability REAL,
+            ml_label TEXT,
             reasons TEXT,
             safe_signals TEXT,
             confidence INTEGER,
@@ -106,6 +109,16 @@ def init_db():
 
     if 'confidence' not in scan_columns:
         db.execute('ALTER TABLE email_scans ADD COLUMN confidence INTEGER')
+
+    if 'rule_score' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN rule_score INTEGER')
+        db.execute('UPDATE email_scans SET rule_score = risk_score WHERE rule_score IS NULL')
+
+    if 'ml_probability' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN ml_probability REAL')
+
+    if 'ml_label' not in scan_columns:
+        db.execute('ALTER TABLE email_scans ADD COLUMN ml_label TEXT')
 
     if 'is_quarantined' not in scan_columns:
         db.execute('ALTER TABLE email_scans ADD COLUMN is_quarantined INTEGER NOT NULL DEFAULT 0')

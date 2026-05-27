@@ -5,6 +5,7 @@ from email import policy
 from email.parser import Parser
 from email.utils import parseaddr
 from urllib.parse import urlparse
+from .ml_classifier import predict_phishing_probability
 
 URGENCY_WORDS = [
     'verify now',
@@ -103,7 +104,9 @@ def analyze_email(raw_email):
     score += detect_authentication_failures(authentication_results, reasons)
     safe_signals += detect_safe_signals(sender, reply_to, return_path, authentication_results, urls, attachments)
 
-    score = min(score, 100)
+    rule_score = min(score, 100)
+    ml_probability = predict_phishing_probability(f'{subject}\n{body}')
+    score = combine_rule_and_ml_scores(rule_score, ml_probability)
     result_label, result_color = get_result(score)
     confidence = get_confidence(raw_email, authentication_results, urls, attachments)
 
@@ -117,6 +120,9 @@ def analyze_email(raw_email):
         'body_preview': body[:500],
         'urls': urls,
         'attachments': attachments,
+        'rule_score': rule_score,
+        'ml_probability': ml_probability,
+        'ml_label': get_ml_label(ml_probability),
         'risk_score': score,
         'result_label': result_label,
         'result_color': result_color,
@@ -361,6 +367,22 @@ def get_result(score):
     if score >= 31:
         return 'Suspicious', 'yellow'
     return 'Safe', 'green'
+
+
+def combine_rule_and_ml_scores(rule_score, ml_probability):
+    if ml_probability is None:
+        return rule_score
+    return round((rule_score * 0.65) + (ml_probability * 0.35))
+
+
+def get_ml_label(ml_probability):
+    if ml_probability is None:
+        return 'Model not available'
+    if ml_probability >= 66:
+        return 'Likely phishing'
+    if ml_probability >= 31:
+        return 'Possibly suspicious'
+    return 'Likely safe'
 
 
 def dumps_list(items):

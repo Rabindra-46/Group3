@@ -52,6 +52,17 @@
               <div class="col-md-6"><div class="detail-box"><span>Subject</span><strong>{{ result.subject }}</strong></div></div>
               <div class="col-md-6"><div class="detail-box"><span>Reply-To</span><strong>{{ result.reply_to }}</strong></div></div>
               <div class="col-md-6"><div class="detail-box"><span>Return-Path</span><strong>{{ result.return_path }}</strong></div></div>
+              <div class="col-md-6"><div class="detail-box"><span>Rule-based score</span><strong>{{ result.rule_score }}/100</strong></div></div>
+              <div class="col-md-6">
+                <div class="detail-box">
+                  <span>Machine learning</span>
+                  {% if result.ml_probability is not none %}
+                    <strong>{{ result.ml_probability }}% phishing probability | {{ result.ml_label }}</strong>
+                  {% else %}
+                    <strong>Model not available</strong>
+                  {% endif %}
+                </div>
+              </div>
             </div>
 
             <h4 class="section-title">Authentication headers</h4>
