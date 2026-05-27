@@ -4,11 +4,11 @@
 {% block page_heading %}Analyze Email{% endblock %}
 
 {% block content_header %}
-  <div class="row page-title-row">
-    <div class="col-sm-8">
+  <div class="soc-hero compact">
+    <div>
       <span class="page-kicker">Threat analysis</span>
-      <h1 class="m-0">Analyze Email</h1>
-      <p class="text-secondary mb-0">Upload a .eml file or paste raw email text to check for phishing indicators.</p>
+      <h1>Inspect suspicious email</h1>
+      <p>Upload a .eml file or paste raw email content with headers for the strongest result.</p>
     </div>
   </div>
 {% endblock %}
@@ -16,9 +16,9 @@
 {% block content %}
   <div class="row g-3">
     <div class="col-lg-5">
-      <div class="card">
+      <div class="card input-card">
         <div class="card-header">
-          <h3 class="card-title">Email input</h3>
+          <h3 class="card-title mb-0">Email intake</h3>
         </div>
         <div class="card-body">
           <form method="post" enctype="multipart/form-data">
@@ -26,14 +26,16 @@
               <label class="form-label" for="email_file">Upload .eml file</label>
               <input class="form-control" id="email_file" name="email_file" type="file" accept=".eml,message/rfc822">
             </div>
-            <div class="text-center text-secondary fw-semibold my-3">or paste email text</div>
+            <div class="divider-label"><span>or paste raw email text</span></div>
             <div class="mb-3">
               <label class="form-label" for="raw_email">Email content</label>
-              <textarea class="form-control scan-box" id="raw_email" name="raw_email" rows="12">{{ raw_email }}</textarea>
+              <textarea class="form-control scan-box" id="raw_email" name="raw_email" rows="16" placeholder="Paste full email headers and body here">{{ raw_email }}</textarea>
             </div>
-            <button class="btn btn-primary" type="submit">Analyze email</button>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-primary" type="submit">Scan Email</button>
+              <button class="btn btn-outline-secondary" type="button" data-sample-email>Sample Phishing Email</button>
+            </div>
           </form>
-          <p class="text-secondary mt-3 mb-0">For best results, upload the original .eml file because it includes mail headers.</p>
         </div>
       </div>
     </div>
@@ -41,93 +43,91 @@
     <div class="col-lg-7">
       {% if result %}
         <div class="card verdict-card risk-{{ result.result_color }}">
-          <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-4">
-            <div>
-              <span class="badge bg-light text-dark mb-3">{{ result.result_label }}</span>
-              <h2 class="mb-2">{{ result.risk_score }}/100 risk score</h2>
-              <p class="mb-0">{{ result.confidence }}% confidence. Source analyzed: <strong>{{ source_name }}</strong></p>
-              <div class="status-strip">
-                <span class="badge bg-light text-dark">Rules: {{ result.rule_score }}/100</span>
-                {% if result.ml_probability is not none %}
-                  <span class="badge bg-light text-dark">ML: {{ result.ml_probability }}%</span>
-                {% else %}
-                  <span class="badge bg-light text-dark">ML: Model not available</span>
-                {% endif %}
+          <div class="card-body">
+            <div class="verdict-layout">
+              <div>
+                <span class="large-risk-badge">{{ result.result_label }}</span>
+                <h2>{{ result.risk_score }}/100 risk score</h2>
+                <p>{{ result.confidence }}% confidence. Source analyzed: <strong>{{ source_name }}</strong></p>
+                <div class="risk-progress"><span style="width: {{ result.risk_score }}%"></span></div>
+                <div class="status-strip">
+                  <span>Rules: {{ result.rule_score }}/100</span>
+                  {% if result.ml_probability is not none %}
+                    <span>ML: {{ result.ml_probability }}% | {{ result.ml_label }}</span>
+                  {% else %}
+                    <span>ML: Model not available</span>
+                  {% endif %}
+                </div>
               </div>
-            </div>
-            <div class="risk-meter" style="--score: {{ result.risk_score }}">
-              <div class="risk-meter-inner">
-                <div>{{ result.risk_score }}<span>Risk</span></div>
+              <div class="risk-meter" style="--score: {{ result.risk_score }}">
+                <div class="risk-meter-inner"><div>{{ result.risk_score }}<span>Risk</span></div></div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="card mt-3">
+        <div class="card evidence-card mt-3">
           <div class="card-body">
             <div class="signal-grid">
               <div class="col-md-6"><div class="detail-box"><span>Sender</span><strong>{{ result.sender }}</strong></div></div>
               <div class="col-md-6"><div class="detail-box"><span>Subject</span><strong>{{ result.subject }}</strong></div></div>
               <div class="col-md-6"><div class="detail-box"><span>Reply-To</span><strong>{{ result.reply_to }}</strong></div></div>
               <div class="col-md-6"><div class="detail-box"><span>Return-Path</span><strong>{{ result.return_path }}</strong></div></div>
-              <div class="col-md-6"><div class="detail-box"><span>Rule-based score</span><strong>{{ result.rule_score }}/100</strong></div></div>
-              <div class="col-md-6">
-                <div class="detail-box">
-                  <span>Machine learning</span>
-                  {% if result.ml_probability is not none %}
-                    <strong>{{ result.ml_probability }}% phishing probability | {{ result.ml_label }}</strong>
-                  {% else %}
-                    <strong>Model not available</strong>
-                  {% endif %}
-                </div>
-              </div>
             </div>
 
-            <h4 class="section-title">Authentication headers</h4>
-            <div class="detail-box"><span>Authentication-Results</span><strong>{{ result.authentication_results }}</strong></div>
-
-            <h4 class="section-title">Email body preview</h4>
-            <div class="email-body-preview">{{ result.body_preview }}</div>
-
-            <h4 class="section-title">Flags and reasons</h4>
+            <h4 class="section-title">Detailed reasons</h4>
             <div class="reason-list">
               {% for reason in result.reasons %}
                 <div class="reason-item">{{ reason }}</div>
               {% endfor %}
             </div>
 
-            {% if result.safe_signals %}
-              <h4 class="section-title">Safe signals</h4>
-              <div class="reason-list">
-                {% for signal in result.safe_signals %}
-                  <div class="reason-item safe-reason">{{ signal }}</div>
-                {% endfor %}
+            <div class="row g-3 mt-1">
+              <div class="col-md-6">
+                <h4 class="section-title">Detected URLs</h4>
+                {% if result.urls %}
+                  <ul class="extracted-list">{% for url in result.urls %}<li>{{ url }}</li>{% endfor %}</ul>
+                {% else %}
+                  <p class="text-secondary">No URLs found.</p>
+                {% endif %}
               </div>
-            {% endif %}
+              <div class="col-md-6">
+                <h4 class="section-title">Detected keywords</h4>
+                <div class="reason-list compact-list">
+                  {% set keyword_ns = namespace(found=false) %}
+                  {% for reason in result.reasons %}
+                    {% if 'keyword' in reason|lower %}
+                      {% set keyword_ns.found = true %}
+                      <div class="reason-item">{{ reason }}</div>
+                    {% endif %}
+                  {% endfor %}
+                  {% if not keyword_ns.found %}
+                    <div class="reason-item safe-reason">No phishing keyword evidence recorded.</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
 
-            <h4 class="section-title">Extracted URLs</h4>
-            {% if result.urls %}
-              <ul class="extracted-list">
-                {% for url in result.urls %}<li>{{ url }}</li>{% endfor %}
-              </ul>
-            {% else %}
-              <p class="text-secondary">No URLs found.</p>
-            {% endif %}
+            <h4 class="section-title">Headers</h4>
+            <div class="detail-box"><span>Authentication-Results</span><strong>{{ result.authentication_results }}</strong></div>
 
             <h4 class="section-title">Attachments</h4>
             {% if result.attachments %}
-              <ul class="extracted-list">
-                {% for attachment in result.attachments %}<li>{{ attachment }}</li>{% endfor %}
-              </ul>
+              <ul class="extracted-list">{% for attachment in result.attachments %}<li>{{ attachment }}</li>{% endfor %}</ul>
             {% else %}
               <p class="text-secondary">No attachments found.</p>
             {% endif %}
+
+            <h4 class="section-title">Email body preview</h4>
+            <div class="email-body-preview">{{ result.body_preview }}</div>
           </div>
         </div>
       {% else %}
-        <div class="card">
-          <div class="card-body text-secondary">
-            Analysis results will appear here after you submit an email.
+        <div class="card result-placeholder">
+          <div class="card-body">
+            <span class="page-kicker">Result panel</span>
+            <h2>Analysis output will appear here</h2>
+            <p class="text-secondary mb-0">The scanner will show a color verdict, risk score, reasons, URLs, headers, attachments, and ML output when available.</p>
           </div>
         </div>
       {% endif %}

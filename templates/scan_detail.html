@@ -4,18 +4,18 @@
 {% block page_heading %}Scan Report{% endblock %}
 
 {% block content_header %}
-  <div class="row page-title-row">
-    <div class="col-sm-8">
+  <div class="soc-hero compact">
+    <div>
       <span class="page-kicker">Saved report</span>
-      <h1 class="m-0">Email scan detail</h1>
-      <p class="text-secondary mb-0">
+      <h1>Email scan detail</h1>
+      <p>
         Created {{ scan.created_at }}
         {% if is_admin_view and scan.user_email %}
           | Submitted by <strong>{{ scan.user_email }}</strong>
         {% endif %}
       </p>
     </div>
-    <div class="col-sm-4 text-sm-end mt-3 mt-sm-0">
+    <div class="hero-actions">
       <a class="btn btn-outline-secondary" href="{{ url_for('main.admin_dashboard') if is_admin_view else url_for('main.scan_history') }}">
         {% if is_admin_view %}Back to admin{% else %}Back to reports{% endif %}
       </a>
@@ -38,70 +38,44 @@
 
 {% block content %}
   <div class="card verdict-card risk-{{ scan.result_color }}">
-    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-4">
-      <div>
-        <span class="badge bg-light text-dark mb-3">{{ scan.result_label }}</span>
-        <h2 class="mb-2">{{ scan.risk_score }}/100 risk score</h2>
-        <p class="mb-0">{{ scan.confidence }}% confidence based on saved evidence.</p>
-        <div class="status-strip">
-          <span class="badge bg-light text-dark">Rules: {{ scan.rule_score }}/100</span>
-          {% if scan.ml_probability is not none %}
-            <span class="badge bg-light text-dark">ML: {{ scan.ml_probability }}%</span>
-          {% else %}
-            <span class="badge bg-light text-dark">ML: Model not available</span>
-          {% endif %}
-          <span class="badge bg-light text-dark">{{ 'Quarantined' if scan.is_quarantined else 'Clear' }}</span>
+    <div class="card-body">
+      <div class="verdict-layout">
+        <div>
+          <span class="large-risk-badge">{{ scan.result_label }}</span>
+          <h2>{{ scan.risk_score }}/100 risk score</h2>
+          <p>{{ scan.confidence }}% confidence based on saved evidence.</p>
+          <div class="risk-progress"><span style="width: {{ scan.risk_score }}%"></span></div>
+          <div class="status-strip">
+            <span>Rules: {{ scan.rule_score }}/100</span>
+            {% if scan.ml_probability is not none %}
+              <span>ML: {{ scan.ml_probability }}% | {{ scan.ml_label }}</span>
+            {% else %}
+              <span>ML: Model not available</span>
+            {% endif %}
+            <span>{{ 'Quarantined' if scan.is_quarantined else 'Clear' }}</span>
+          </div>
         </div>
-      </div>
-      <div class="risk-meter" style="--score: {{ scan.risk_score }}">
-        <div class="risk-meter-inner">
-          <div>{{ scan.risk_score }}<span>Risk</span></div>
+        <div class="risk-meter" style="--score: {{ scan.risk_score }}">
+          <div class="risk-meter-inner"><div>{{ scan.risk_score }}<span>Risk</span></div></div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="card mt-3">
+  <div class="card evidence-card mt-3">
     <div class="card-body">
       <div class="signal-grid">
         <div class="col-md-6"><div class="detail-box"><span>Sender</span><strong>{{ scan.sender }}</strong></div></div>
         <div class="col-md-6"><div class="detail-box"><span>Subject</span><strong>{{ scan.subject }}</strong></div></div>
         <div class="col-md-6"><div class="detail-box"><span>Reply-To</span><strong>{{ scan.reply_to or 'Not recorded' }}</strong></div></div>
         <div class="col-md-6"><div class="detail-box"><span>Return-Path</span><strong>{{ scan.return_path or 'Not recorded' }}</strong></div></div>
-        <div class="col-md-6"><div class="detail-box"><span>Rule-based score</span><strong>{{ scan.rule_score }}/100</strong></div></div>
-        <div class="col-md-6">
-          <div class="detail-box">
-            <span>Machine learning</span>
-            {% if scan.ml_probability is not none %}
-              <strong>{{ scan.ml_probability }}% phishing probability | {{ scan.ml_label }}</strong>
-            {% else %}
-              <strong>Model not available</strong>
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="detail-box">
-            <span>Quarantine status</span>
-            <strong>{{ 'Quarantined' if scan.is_quarantined else 'Clear' }}</strong>
-          </div>
-        </div>
+        <div class="col-md-6"><div class="detail-box"><span>Quarantine status</span><strong>{{ 'Quarantined' if scan.is_quarantined else 'Clear' }}</strong></div></div>
         {% if scan.is_quarantined %}
-          <div class="col-md-6">
-            <div class="detail-box">
-              <span>Quarantine reason</span>
-              <strong>{{ scan.quarantine_reason or 'No reason saved.' }}</strong>
-            </div>
-          </div>
+          <div class="col-md-6"><div class="detail-box"><span>Quarantine reason</span><strong>{{ scan.quarantine_reason or 'No reason saved.' }}</strong></div></div>
         {% endif %}
       </div>
 
-      <h4 class="section-title">Authentication headers</h4>
-      <div class="detail-box"><span>Authentication-Results</span><strong>{{ scan.authentication_results or 'Not recorded' }}</strong></div>
-
-      <h4 class="section-title">Email body preview</h4>
-      <div class="email-body-preview">{{ scan.body_preview or 'No body preview saved.' }}</div>
-
-      <h4 class="section-title">Flags and reasons</h4>
+      <h4 class="section-title">Detailed reasons</h4>
       <div class="reason-list">
         {% for reason in scan.reasons %}
           <div class="reason-item">{{ reason }}</div>
@@ -119,23 +93,44 @@
         </div>
       {% endif %}
 
-      <h4 class="section-title">Extracted URLs</h4>
-      {% if scan.urls %}
-        <ul class="extracted-list">
-          {% for url in scan.urls %}<li>{{ url }}</li>{% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-secondary">No URLs found.</p>
-      {% endif %}
+      <div class="row g-3 mt-1">
+        <div class="col-md-6">
+          <h4 class="section-title">Detected URLs</h4>
+          {% if scan.urls %}
+            <ul class="extracted-list">{% for url in scan.urls %}<li>{{ url }}</li>{% endfor %}</ul>
+          {% else %}
+            <p class="text-secondary">No URLs found.</p>
+          {% endif %}
+        </div>
+        <div class="col-md-6">
+          <h4 class="section-title">Detected keywords</h4>
+          <div class="reason-list compact-list">
+            {% set keyword_ns = namespace(found=false) %}
+            {% for reason in scan.reasons %}
+              {% if 'keyword' in reason|lower %}
+                {% set keyword_ns.found = true %}
+                <div class="reason-item">{{ reason }}</div>
+              {% endif %}
+            {% endfor %}
+            {% if not keyword_ns.found %}
+              <div class="reason-item safe-reason">No phishing keyword evidence recorded.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <h4 class="section-title">Headers</h4>
+      <div class="detail-box"><span>Authentication-Results</span><strong>{{ scan.authentication_results or 'Not recorded' }}</strong></div>
 
       <h4 class="section-title">Attachments</h4>
       {% if scan.attachments %}
-        <ul class="extracted-list">
-          {% for attachment in scan.attachments %}<li>{{ attachment }}</li>{% endfor %}
-        </ul>
+        <ul class="extracted-list">{% for attachment in scan.attachments %}<li>{{ attachment }}</li>{% endfor %}</ul>
       {% else %}
         <p class="text-secondary">No attachments found.</p>
       {% endif %}
+
+      <h4 class="section-title">Email body preview</h4>
+      <div class="email-body-preview">{{ scan.body_preview or 'No body preview saved.' }}</div>
     </div>
   </div>
 {% endblock %}

@@ -1,17 +1,18 @@
 {% extends 'base.html' %}
 
 {% block title %}Dashboard - Phishing Detector{% endblock %}
-{% block page_heading %}User Dashboard{% endblock %}
+{% block page_heading %}Analyst Dashboard{% endblock %}
 
 {% block content_header %}
-  <div class="row page-title-row">
-    <div class="col-sm-8">
+  <div class="soc-hero">
+    <div>
       <span class="page-kicker">Analyst workspace</span>
-      <h1 class="m-0">Email risk review</h1>
-      <p class="text-secondary mb-0">Signed in as {{ user_email }} | Role: {{ user_role|title }}</p>
+      <h1>Email threat review</h1>
+      <p>Signed in as {{ user_email }} with {{ user_role|title }} access.</p>
     </div>
-    <div class="col-sm-4 text-sm-end mt-3 mt-sm-0">
-      <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Analyze Email</a>
+    <div class="hero-actions">
+      <a class="btn btn-primary btn-lg" href="{{ url_for('main.analyze') }}">Analyze Email</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('main.scan_history') }}">Open reports</a>
     </div>
   </div>
 {% endblock %}
@@ -23,16 +24,16 @@
         <div class="card-body">
           <span class="metric-label">Total scans</span>
           <span class="metric-number">{{ scan_counts.total }}</span>
-          <div class="metric-note">All saved reports</div>
+          <div class="metric-note">Saved reports</div>
         </div>
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card metric-card danger">
+      <div class="card metric-card safe">
         <div class="card-body">
-          <span class="metric-label">Phishing</span>
-          <span class="metric-number">{{ scan_counts.phishing }}</span>
-          <div class="metric-note">High-risk results</div>
+          <span class="metric-label">Safe</span>
+          <span class="metric-number">{{ scan_counts.safe }}</span>
+          <div class="metric-note">No major indicators</div>
         </div>
       </div>
     </div>
@@ -46,11 +47,11 @@
       </div>
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="card metric-card safe">
+      <div class="card metric-card danger">
         <div class="card-body">
-          <span class="metric-label">Quarantined</span>
-          <span class="metric-number">{{ scan_counts.quarantined }}</span>
-          <div class="metric-note">Held for action</div>
+          <span class="metric-label">Phishing</span>
+          <span class="metric-number">{{ scan_counts.phishing }}</span>
+          <div class="metric-note">{{ scan_counts.quarantined }} quarantined</div>
         </div>
       </div>
     </div>
@@ -58,13 +59,17 @@
 
   <div class="row g-3 mt-1">
     <div class="col-lg-8">
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">Recent reports</h3>
+      <div class="card report-card h-100">
+        <div class="report-toolbar">
+          <div>
+            <h3 class="report-toolbar-title">Recent scan history</h3>
+            <p class="report-toolbar-subtitle">Your latest analyzed emails and saved risk scores.</p>
+          </div>
+          <a class="action-btn primary" href="{{ url_for('main.analyze') }}"><span class="action-dot"><span>A</span></span>Analyze</a>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
-            <table class="table table-striped align-middle mb-0">
+            <table class="table report-table align-middle mb-0">
               <thead>
                 <tr>
                   <th>Subject</th>
@@ -77,11 +82,21 @@
               <tbody>
                 {% for scan in recent_scans %}
                   <tr>
-                    <td>{{ scan.subject }}</td>
+                    <td><div class="report-subject"><strong>{{ scan.subject }}</strong><span>{{ scan.sender }}</span></div></td>
                     <td><span class="badge risk-{{ scan.result_color }}">{{ scan.result_label }}</span></td>
-                    <td>{{ 'Held' if scan.is_quarantined else 'Clear' }}</td>
-                    <td>{{ scan.risk_score }}/100</td>
-                    <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}">View</a></td>
+                    <td>
+                      {% if scan.is_quarantined %}
+                        <span class="status-chip held">Held</span>
+                      {% else %}
+                        <span class="status-chip clear">Clear</span>
+                      {% endif %}
+                    </td>
+                    <td><span class="score-chip">{{ scan.risk_score }}/100</span></td>
+                    <td>
+                      <div class="action-group">
+                        <a class="action-btn primary" href="{{ url_for('main.scan_detail', scan_id=scan.id) }}"><span class="action-dot"><span>V</span></span>View</a>
+                      </div>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -101,9 +116,21 @@
     </div>
 
     <div class="col-lg-4">
-      <div class="card">
+      <div class="card chart-card mb-3">
         <div class="card-header">
-          <h3 class="card-title">Quick actions</h3>
+          <h3 class="card-title mb-0">Risk summary</h3>
+        </div>
+        <div class="card-body">
+          <canvas class="soc-chart" id="userRiskChart"
+            data-safe="{{ scan_counts.safe }}"
+            data-suspicious="{{ scan_counts.suspicious }}"
+            data-phishing="{{ scan_counts.phishing }}"
+            data-quarantined="{{ scan_counts.quarantined }}"></canvas>
+        </div>
+      </div>
+      <div class="card quick-card">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Quick actions</h3>
         </div>
         <div class="card-body d-grid gap-2">
           <a class="btn btn-primary" href="{{ url_for('main.analyze') }}">Analyze Email</a>
