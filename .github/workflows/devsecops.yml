@@ -11,6 +11,8 @@ jobs:
   build-sast-test:
     name: Build, SAST, Dependency Scan, Test
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - name: Checkout repository
@@ -45,6 +47,8 @@ jobs:
     name: DAST with OWASP ZAP
     runs-on: ubuntu-latest
     needs: build-sast-test
+    env:
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - name: Checkout repository
