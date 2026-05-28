@@ -1,0 +1,90 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-sast-test:
+    name: Build, SAST, Dependency Scan, Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Build check
+        run: python -m compileall app run.py train_model.py
+
+      - name: SAST with Bandit
+        run: bandit -r app run.py train_model.py -x tests
+
+      - name: Dependency vulnerability scan
+        run: pip-audit -r requirements.txt
+
+      - name: Run automated tests
+        run: pytest -q
+
+  dast:
+    name: DAST with OWASP ZAP
+    runs-on: ubuntu-latest
+    needs: build-sast-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start Flask app
+        env:
+          SECRET_KEY: github-actions-test-secret
+        run: |
+          nohup python run.py > flask.log 2>&1 &
+          sleep 10
+
+      - name: OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://127.0.0.1:5000'
+          fail_action: false
+          allow_issue_writing: false
+
+      - name: Upload Flask log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flask-log
+          path: flask.log
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: dast
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Deployment placeholder
+        run: echo "Deploy to staging or production here after all security checks pass."
